@@ -1,0 +1,2 @@
+public class PlinkoTest {
+}
