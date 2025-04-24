@@ -11,6 +11,7 @@ public class PlinkoSolidObject extends PlinkoObject{
     private SolidType type;
 
 
+
     public enum SolidType {
         BOARD_PIN('Q'), PLACED_PIN('@'), WALL('|'), BALL_SOLIDIFIED('X');
 
@@ -22,7 +23,7 @@ public class PlinkoSolidObject extends PlinkoObject{
 
     //Constructor with default ownerId (Object belongs to Server)
     public PlinkoSolidObject(int xPos, int yPos, SolidType type) {
-        super(xPos, yPos);
+        super(xPos, yPos, SERVER_ID);
 
         //No objects owned by the server have a lifetime
         this.lifeTime = INF_LIFETIME;
@@ -53,13 +54,14 @@ public class PlinkoSolidObject extends PlinkoObject{
     }
 
     //update object to the next state
-    //Return int which is somewhat unique to this state update
+    //Return int which is *is useful in creating a unique value for the entire state change
     public long next_state() {
         if(lifeTime > 0) {
             lifeTime--;
         }
 
-        return lifeTime + objId;
+        //TODO: Make this value useful in creating a unique value for the entire state change
+        return getSequentialPos(containerMaxXLen) * lifeTime;
     }
 
     //returns false if lifeTime is expired
@@ -70,6 +72,11 @@ public class PlinkoSolidObject extends PlinkoObject{
 
     @Override
     public char getRepresentativeChar() { return type.getRepChar(); }
+
+    @Override
+    public boolean canOccupy(boolean neutral) {
+        return false;
+    }
 
     public long getLifeTime() {
         return lifeTime;

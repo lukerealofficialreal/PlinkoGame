@@ -96,6 +96,12 @@ An example of what the text representation of a plinko board might look like
 
 </pre>
  */
+//Object storing data structure requirements:
+//  - Frequent updates
+//  - Frequent copies
+//  - Not terribly large
+//  For now: ArrayList to store objects in
+//
 //plinko objects share the following properties:
 //  - Position  (int xPos, int yPos)
 //      - position consists of 2 integers corresponding the x,y position of the bottom-left corner of the given object,
@@ -156,11 +162,16 @@ An example of what the text representation of a plinko board might look like
 //
 // The above proof states that, given it is possible to generate a unique prime number for every state transition, and given
 // there is some verified starting state where the client and the server have the same state, it is possible to validate
-// validate all states up to the current state by multiplying the primes for each state transition and comparing the results
+// all states up to the current state by multiplying the primes for each state transition and comparing the results
 // obtained by both the client and the server. If they are equal, the states are equal. If they are not equal, the states
-// are invalid.
-
-
+// are not equal.
+//
+// Assigning a unique prime number to each state transition can be accomplished by assigning each prime state transition
+// a unique integer and using a map to map the integer to a unique prime. This simplifies the problem to assigning each
+// state a unique integer.
+//
+// Ideas for assigning each state transition a unique integer: ???
+//
 // Initially, the client receives the state from the server.
 // If the client has no last stable state, the server sends over the entire game state
 //
@@ -174,9 +185,56 @@ An example of what the text representation of a plinko board might look like
 //
 // The client will then send its stateTracker again to verify this corrected state. If this process fails too many times,
 // The server will instead send the entire game state
-//
-//
-//
+
+
+import java.util.ArrayList;
+
 public class PlinkoBoard {
+    private static final int Y_DIM = 22; //The maximum Y height of the board
+
+    private static final int MIN_X_DIM = 10; //The minimum width a board can be
+    private static final int X_INC_INTERVAL = 5; //The amount that the board width can increase by
+
+    private int xLen; //The number of tiles in the X dimension (including outer walls)
+    private int yLen; //The number of tiles in the Y dimension (including outer walls)
+
+    //the 'time' at which this state exists. Starts at 0 and increments for every full state update
+    private int stateNum = 0;
+
+    //The previous state of this object
+    //Used to restore to a previous game state
+    //
+    //If the game is being run locally, this should always be the current state
+    private PlinkoBoard validState;
+
+    //Data structure to store permanent board objects
+    //Persist when the map resets
+    //Should be the same at the start of a game and the end of a game
+    //Every object included here should also be included in boardArray
+    private ArrayList<PlinkoObject> persistantObjs;
+
+    //2D array of tiles which make up the plinko board
+    private Tile<PlinkoObject>[][] boardArr;
+
+    //Creates an empty board of the given size
+    public PlinkoBoard(int numPlayers) {
+        //Get xLen from the number of players
+        xLen = boardWidthFromPlayers(numPlayers);
+        yLen = Y_DIM;
+
+        //The board state is initially presumed to be valid
+        validState = null;
+
+
+    }
+
+    //This function will need fine-tuning and playtesting to determine how the board width should grow as
+    //number of player increase
+    //TODO: add logic which will grow the board as more players exist.
+    public static int boardWidthFromPlayers(int numPlayers) {
+        int xDim = 0;
+
+        return Math.max(xDim, MIN_X_DIM);
+    }
 
 }
