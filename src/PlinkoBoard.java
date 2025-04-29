@@ -40,7 +40,6 @@
 //as the first 2 rows below the droppers and above the score pits.
 //
 //
-//
 //At the start of the game, the board is generated procedurally from combinations of predefined board segments
 //which consist of 2 rows of board objects.
 //For example, one of those segments might be:
@@ -92,6 +91,7 @@ An example of what the text representation of a plinko board might look like
             |-Q------oQ-Q-----------------Q-------Q-Q------------------|
             |-----------------------------------o----------------------|
             |___||___||XXX||___||___||___||___||XXX||___||___||___||___|
+            ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
 
 </pre>
@@ -190,6 +190,9 @@ An example of what the text representation of a plinko board might look like
 import java.util.ArrayList;
 
 public class PlinkoBoard {
+    private static final String BOARD_PATTERNS_PATH = System.getProperty("user.dir") + "BoardPatterns.json";
+    private static BoardPatternGenerator boardPatternGenerator = new BoardPatternGenerator(BOARD_PATTERNS_PATH);
+
     private static final int Y_DIM = 22; //The maximum Y height of the board
 
     private static final int MIN_X_DIM = 10; //The minimum width a board can be
@@ -218,6 +221,12 @@ public class PlinkoBoard {
 
     //Creates an empty board of the given size
     public PlinkoBoard(int numPlayers) {
+        //Generate the board
+        //
+        //to generate the board:
+        //1. define the dimensions of the board
+        //2. read b
+
         //Get xLen from the number of players
         xLen = boardWidthFromPlayers(numPlayers);
         yLen = Y_DIM;
@@ -225,6 +234,19 @@ public class PlinkoBoard {
         //The board state is initially presumed to be valid
         validState = null;
 
+        persistantObjs =
+
+    }
+
+    //Reads the board pattern file, parses the json to obtain a hashmap of board patterns
+    //builds the board randomly from these patterns
+    //Ensures the top and bottom of the board are neutral tiles
+    public static void generateBoard(int xLen, int yLen, ) {
+        maxLen =
+    }
+
+    //Reads board patterns from file and returns a hashmap
+    public void readBoardPatterns() {
 
     }
 
