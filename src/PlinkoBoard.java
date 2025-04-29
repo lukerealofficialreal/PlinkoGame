@@ -241,6 +241,7 @@ public class PlinkoBoard {
     //Reads the board pattern file, parses the json to obtain a hashmap of board patterns
     //builds the board randomly from these patterns
     //Ensures the top and bottom of the board are neutral tiles
+    //TODO: generate board
     public static void generateBoard(int xLen, int yLen, ) {
         maxLen =
     }
