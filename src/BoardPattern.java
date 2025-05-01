@@ -10,14 +10,13 @@ public class BoardPattern {
     private static final int NUM_LINES = 2; //The number of lines in the board pattern
 
     private int id; //integer id unique to this pattern
-    private PatternTag[] tags; //identifiers which group this pattern into one or more categories
+    private final PatternTag[] tags; //identifiers which group this pattern into one or more categories
     private String[] lines; //The first line of the board pattern
 
     //transformations
-    private static final boolean NO_FLIP = false;
     private static final int NO_OFFSET = 0;
 
-    private boolean flip = NO_FLIP;//is the pattern is mirrored horizontally
+    private boolean flipped = false;//is the pattern is mirrored horizontally
     private int xOffset = NO_OFFSET; //the amount that each line is shifted to the right
 
     //No transformation is applied initially
@@ -30,14 +29,29 @@ public class BoardPattern {
         this.lines = lines;
     }
 
-    //Converts a string into a PatternTag
-    //Returns null if the given string does not represent a corresponding PatternTag
-    public static PatternTag strTagToPatternTag(String strTag) {
-        try {
-            return PatternTag.valueOf(strTag);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
+    public BoardPattern(BoardPattern other) {
+        this.id = other.id;
+        this.tags = other.tags; //Shared reference is acceptable because tags is final
+
+        this.lines = new String[other.lines.length];
+        System.arraycopy(other.lines, 0, this.lines, 0, lines.length);
     }
 
+    public int getId() {
+        return id;
+    }
+
+    public boolean isFlipped() {
+        return flipped;
+    }
+    public void setFlipped(boolean flipState) {
+        this.flipped = flipState;
+    }
+
+    public int getxOffset() {
+        return xOffset;
+    }
+    public void setxOffset(int xOffset) {
+        this.xOffset = xOffset;
+    }
 }
