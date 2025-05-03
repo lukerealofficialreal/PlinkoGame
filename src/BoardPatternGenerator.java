@@ -22,12 +22,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import org.json.*;
-
-import javax.swing.text.html.HTML;
 
 public class BoardPatternGenerator {
 
@@ -39,7 +35,7 @@ public class BoardPatternGenerator {
     }
 
     //Generates a new random board pattern which has one of the given tag(s)
-    public BoardPattern genRandomBoardPattern(PatternTag[] tag) {
+    public BoardPattern genRandomPattern(PatternTag[] tag) {
 
         //Get a list of all patterns filtered to contain only patterns
         //with the given tags
@@ -70,7 +66,7 @@ public class BoardPatternGenerator {
     }
 
     //Generates a new random board pattern which has the give tag and does not have one of the given excluded tags
-    public BoardPattern genRandomBoardPattern(PatternTag tag, PatternTag[] exclude) {
+    public BoardPattern genRandomPattern(PatternTag tag, PatternTag[] exclude) {
 
         //Get a list of all patterns filtered to contain only patterns
         //with the given tag
@@ -113,7 +109,7 @@ public class BoardPatternGenerator {
     //Applies a random transformation
     public BoardPattern genRandomPatternWithRandomTransformation(int xLength, PatternTag[] tag) {
         //Get a copy of a random board pattern of the given tag
-        BoardPattern randPattern = genRandomBoardPattern(tag);
+        BoardPattern randPattern = genRandomPattern(tag);
 
         //Apply transformations
         Random rand = new Random();
@@ -131,7 +127,7 @@ public class BoardPatternGenerator {
     //Applies a random transformation
     public BoardPattern genRandomPatternWithRandomTransformation(int xLength, PatternTag tag, PatternTag[] exclude) {
         //Get a copy of a random board pattern of the given tag
-        BoardPattern randPattern = genRandomBoardPattern(tag, exclude);
+        BoardPattern randPattern = genRandomPattern(tag, exclude);
 
         //Apply transformations
         Random rand = new Random();

@@ -209,7 +209,7 @@ public class PlinkoBoard {
 
     private static final int Y_DIM = 22; //The maximum Y height of the board
 
-    private static final int MIN_X_DIM = 10; //The minimum width a board can be
+    private static final int MIN_X_DIM = 20; //The minimum width a board can be
     private static final int MAX_X_DIM = 100; //The maximum width a board can be
 
     private static final int X_INC_INTERVAL = 5; //The amount that the board width can increase by
@@ -220,10 +220,14 @@ public class PlinkoBoard {
     //the 'time' at which this state exists. Starts at 0 and increments for every full state update
     private int stateNum = 0;
 
+    //The patterns used to construct the board
+    BoardPattern[] patterns;
+
     //The previous state of this object
     //Used to restore to a previous game state
     //
     //If the game is being run locally, this should always be the current state
+    //TODO: Implement copying the entire board object
     private PlinkoBoard validState;
 
     //BoardArr which contains only the references to permanent board objects
@@ -242,26 +246,25 @@ public class PlinkoBoard {
         //2. read b
 
         //Get xLen from the number of players
-        xLen = boardWidthFromPlayers(numPlayers);
-        yLen = Y_DIM;
+        this.xLen = boardWidthFromPlayers(numPlayers);
+        this.yLen = Y_DIM;
 
         //Declare initial board
-        initBoardArr = generateBoard(xLen, yLen);
+        this.patterns = generatePatterns(xLen, yLen);
+        this.initBoardArr = boardFromPatterns(patterns);
 
 
         //Copy the references to the tiles in initBoardArr to boardArr
-        boardArr = new PlinkoTile[yLen][xLen];
+        this.boardArr = new PlinkoTile[yLen][xLen];
         for(int i = 0; i < initBoardArr.length; i++) {
-            System.arraycopy(initBoardArr[i], 0, boardArr[i], 0, initBoardArr.length);
+            System.arraycopy(initBoardArr[i], 0, boardArr[i], 0, initBoardArr[i].length);
         }
 
         //The board state is initially presumed to be valid
-        validState = this;
+        this.validState = this; //TODO: This should be a deep copy.
     }
 
-    private PlinkoTile[][] generateBoard(int xLen, int yLen) {
-        PlinkoTile[][] board = new PlinkoTile[yLen][xLen];
-
+    private BoardPattern[] generatePatterns(int xLen, int yLen) {
         if(yLen%BoardPattern.PATTERN_HEIGHT != 0) {
             throw new IllegalArgumentException("Board height not divisible by pattern height.");
         }
@@ -276,8 +279,13 @@ public class PlinkoBoard {
         //respectively. This is accomplished by excluding the "dropper" and "score_pit" tags from all locations except
         //the top and bottom.
         //
+        //There arr also certain locations which should not be transformed; both the droppers and the score_pits
         //Use patternTags to restrict which patterns can be used at certain locations on the board.
 
+        //This is not a very scalable or pretty approach to constraining the board layout.
+        //If more unique board locations are to be added, this should be refactored into its own
+        //BoardConstraint class, which should have an include, exclude, transformed, etc... field for each pattern
+        //on the board,
         ArrayList<ArrayList<PatternTag>> include = new ArrayList<ArrayList<PatternTag>>(
                 Collections.nCopies(numBoardPatterns,new ArrayList<PatternTag>(
                         List.of(PatternTag.any)
@@ -286,10 +294,13 @@ public class PlinkoBoard {
                 Collections.nCopies(numBoardPatterns,new ArrayList<PatternTag>(
                         Arrays.asList(PatternTag.dropper, PatternTag.score_pit)
                 )));
+        ArrayList<Boolean> randTransform = new ArrayList<>(Arrays.asList(new Boolean[numBoardPatterns]));
+        Collections.fill(randTransform, Boolean.TRUE);
 
         //Hard code tags for certain areas of the board
         include.set(0, new ArrayList<PatternTag>(List.of(PatternTag.dropper)));
         exclude.set(0, new ArrayList<PatternTag>(List.of()));
+        randTransform.set(0, false);
 
         include.set(1, new ArrayList<PatternTag>(List.of(PatternTag.below_dropper)));
         exclude.set(1, new ArrayList<PatternTag>(List.of()));
@@ -303,35 +314,64 @@ public class PlinkoBoard {
 
         include.set(numBoardPatterns-1, new ArrayList<PatternTag>(List.of(PatternTag.score_pit)));
         exclude.set(numBoardPatterns-1, new ArrayList<PatternTag>(List.of()));
+        randTransform.set(numBoardPatterns-1, false);
 
         //Fill out the board with tiles from random tile patterns
+        BoardPattern[] patterns = new BoardPattern[numBoardPatterns];
         for(int i = 0; i < yLen; i+=BoardPattern.PATTERN_HEIGHT)
         {
             //Generate a randomly transformed BoardPattern
             ArrayList<PatternTag> currInclude = include.get(i/BoardPattern.PATTERN_HEIGHT);
             ArrayList<PatternTag> currExclude = exclude.get(i/BoardPattern.PATTERN_HEIGHT);
+            Boolean transformed = randTransform.get(i/BoardPattern.PATTERN_HEIGHT);
 
             BoardPattern pattern;
             if(currExclude.isEmpty()) {
-                pattern = boardPatternGenerator.genRandomPatternWithRandomTransformation(
-                        xLen,
-                        currInclude.toArray(new PatternTag[0]));
+                if(transformed) {
+                    pattern = boardPatternGenerator.genRandomPatternWithRandomTransformation(
+                            xLen,
+                            currInclude.toArray(new PatternTag[0]));
+                } else {
+                    pattern = boardPatternGenerator.genRandomPattern(
+                            currInclude.toArray(new PatternTag[0]));
+                }
             } else {
-                pattern = boardPatternGenerator.genRandomPatternWithRandomTransformation(
-                        xLen,
-                        currInclude.get(0),
-                        currExclude.toArray(new PatternTag[0]));
+                if(transformed) {
+                    pattern = boardPatternGenerator.genRandomPatternWithRandomTransformation(
+                            xLen,
+                            currInclude.get(0),
+                            currExclude.toArray(new PatternTag[0]));
+                } else {
+                    pattern = boardPatternGenerator.genRandomPattern(
+                            currInclude.get(0),
+                            currExclude.toArray(new PatternTag[0]));
+                }
             }
+            //String[] test = pattern.getLinesText();
+            //System.out.println(test[0]);
+            //System.out.println(test[1]);
 
-            //Get rows of tiles from the board pattern
+            //Get rows of tiles from the board pattern,
+            //Add walls to the left and right
             //And add them to the board
-            String[] test = pattern.getLinesText();
-            System.out.println(test[0]);
-            System.out.println(test[1]);
+            patterns[i/BoardPattern.PATTERN_HEIGHT] = pattern;
+        }
+        return patterns;
+    }
 
-            PlinkoTile[][] tiles = pattern.getPlinkoTiles(xLen);
-            for(int j = i; j < BoardPattern.PATTERN_HEIGHT; j++) {
-                System.arraycopy(tiles[j], 0, board[j], 0, xLen);
+    public PlinkoTile[][] boardFromPatterns(BoardPattern[] patterns) {
+        PlinkoTile[][] board = new PlinkoTile[yLen][xLen];
+
+        for(int i = 0; i < yLen; i+=BoardPattern.PATTERN_HEIGHT) {
+            PlinkoTile[][] tilePattern = patterns[i/BoardPattern.PATTERN_HEIGHT].getPlinkoTiles(xLen);
+
+            //Each borderWall tile shares a reference to the same wall object.
+            PlinkoObject borderWall = new PlinkoSolidObject(PlinkoSolidObject.SolidType.WALL);
+            for (int j = i; j < i+BoardPattern.PATTERN_HEIGHT; j++) {
+                //Add walls
+                tilePattern[j-i][0] = new PlinkoTile(false, borderWall);
+                tilePattern[j-i][xLen-1] = new PlinkoTile(false, borderWall);
+                System.arraycopy(tilePattern[j-i], 0, board[j], 0, xLen);
             }
         }
         return board;
@@ -355,10 +395,10 @@ public class PlinkoBoard {
     //This function will need fine-tuning and playtesting to determine how the board width should grow as
     //number of player increase
     //TODO: add logic which will grow the board as more players exist.
-    //      for now, each player increases board width by 5
+    //      for now, each player increases board width by 10
     public static int boardWidthFromPlayers(int numPlayers) {
         int xDim = 0;
-        xDim += 5*numPlayers;
+        xDim += 10*numPlayers;
         return Math.min(Math.max(xDim, MIN_X_DIM), MAX_X_DIM);
     }
 

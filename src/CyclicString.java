@@ -29,31 +29,34 @@ public class CyclicString {
 
     //Get amount characters from the string
     public String getString(int amount) {
-        char[] result = new char[amount];
+        //Refactor to reuse code
+        return getStringWithTransformation(amount, false, 0);
 
-        //Get the number of characters requested
-        //Check how many characters can be grabbed initially.
-        //  Grab them.
-        //if all in amount was grabbed, return
-        //  else, keep going until all grabbed
-        int currPos = 0;
-        int grabbable = Integer.min(amount, charArr.length - (currChar + 1));
-
-        System.arraycopy(charArr, currChar, result, currPos, grabbable);
-        amount -= grabbable;
-
-        while (amount != 0) {
-            currPos += grabbable;
-            currChar = 0;
-            grabbable = Integer.min(amount, charArr.length - 1);
-
-            System.arraycopy(charArr, 0, result, currPos, grabbable);
-            amount -= grabbable;
-        }
-
-        currChar += grabbable;
-
-        return new String(result);
+//        char[] result = new char[amount];
+//
+//        //Get the number of characters requested
+//        //Check how many characters can be grabbed initially.
+//        //  Grab them.
+//        //if all in amount was grabbed, return
+//        //  else, keep going until all grabbed
+//        int currPos = 0;
+//        int grabbable = Integer.min(amount, charArr.length - (currChar + 1));
+//
+//        System.arraycopy(charArr, currChar, result, currPos, grabbable);
+//        amount -= grabbable;
+//
+//        while (amount != 0) {
+//            currPos += grabbable;
+//            currChar = 0;
+//            grabbable = Integer.min(amount, charArr.length - 1);
+//
+//            System.arraycopy(charArr, 0, result, currPos, grabbable);
+//            amount -= grabbable;
+//        }
+//
+//        currChar += grabbable;
+//
+//        return new String(result);
     }
 
     //Get remaining characters from the string and apply transformation
@@ -76,10 +79,10 @@ public class CyclicString {
         //if all in amount was grabbed, return
         //  else, keep going until all grabbed
         int currPos = 0;
-        int grabbable = Integer.min(amount, charArr.length - (currChar + 1));
+        int grabbable = Integer.min(amount, charArr.length - (currChar));
 
         //System.arraycopy(charArr, currChar, result, currPos, grabbable);
-        for (int i = currChar; i < grabbable; i++) {
+        for (int i = 0; i < grabbable; i++) {
             if(reversed) {
                 result[result.length - 1 - i - currPos] = charArr[i+currChar];
             } else {
@@ -90,7 +93,7 @@ public class CyclicString {
         while (amount != 0) {
             currPos += grabbable;
             currChar = 0;
-            grabbable = Integer.min(amount, charArr.length - 1);
+            grabbable = Integer.min(amount, charArr.length);
 
             //System.arraycopy(charArr, 0, result, currPos, grabbable);
             for (int i = 0; i < grabbable; i++) {
