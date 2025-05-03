@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -181,7 +182,9 @@ public class BoardPatternGenerator {
             JSONArray jsonTags = jsonPatterns.getJSONObject(i).getJSONArray("tags");
             PatternTag[] tags = null;
             try {
+                AtomicInteger counter = new AtomicInteger(0);
                 tags = Arrays.stream(new String[jsonTags.length()])
+                        .map(x -> jsonTags.getString(counter.getAndIncrement()))
                         .map(PatternTag::strTagToPatternTag)
                         .toList().toArray(new PatternTag[0]);
             } catch (TagFormatException e) {

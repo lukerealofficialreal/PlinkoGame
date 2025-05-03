@@ -6,12 +6,14 @@
 //The segments are cropped/repeated to fill the length of the board, and the patterns shifted left and right a random
 //amount to allow for more variety.
 
-public class BoardPattern {
-    private static final int NUM_LINES = 2; //The number of lines in the board pattern
+import java.util.Arrays;
 
-    private int id; //integer id unique to this pattern
+public class BoardPattern {
+    public static final int PATTERN_HEIGHT = 2; //The number of rows in the board pattern
+
+    private final int id; //integer id unique to this pattern
     private final PatternTag[] tags; //identifiers which group this pattern into one or more categories
-    private String[] lines; //The first line of the board pattern
+    private final CyclicString[] lines; //The first line of the board pattern
 
     //transformations
     private static final int NO_OFFSET = 0;
@@ -24,17 +26,78 @@ public class BoardPattern {
         this.id = id;
         this.tags = tags;
 
-        if(lines.length != NUM_LINES)
+        if(lines.length != PATTERN_HEIGHT)
             throw new ArrayIndexOutOfBoundsException();
-        this.lines = lines;
+        this.lines = Arrays.stream(lines)
+               .map(CyclicString::new)
+               .toList().toArray(new CyclicString[0]);
     }
 
     public BoardPattern(BoardPattern other) {
         this.id = other.id;
         this.tags = other.tags; //Shared reference is acceptable because tags is final
 
-        this.lines = new String[other.lines.length];
+        this.lines = new CyclicString[other.lines.length];
         System.arraycopy(other.lines, 0, this.lines, 0, lines.length);
+
+        this.flipped = other.flipped;
+        this.xOffset = other.xOffset;
+    }
+
+    //Returns the text representation of this board pattern with no cropping/wrapping
+    public String[] getLinesText() {
+        String[] transformedLines = new String[lines.length];
+        for(int i = 0; i < lines.length; i++) {
+            transformedLines[i] = lines[i].getStringWithTransformation(flipped, xOffset);
+            lines[i].resetPos();
+        }
+        return transformedLines;
+    }
+
+    //Returns the text representation of this board pattern, wrapped/cropped to the given length
+    public String[] getLinesText(int xLength) {
+        String[] transformedLines = new String[lines.length];
+        for(int i = 0; i < lines.length; i++) {
+            transformedLines[i] = lines[i].getStringWithTransformation(xLength, flipped, xOffset);
+            lines[i].resetPos();
+        }
+        return transformedLines;
+    }
+
+    //Returns the grid of tiles which make up this board pattern, wrapped/cropped to the given length
+    public PlinkoTile[][] getPlinkoTiles(int xLength) {
+        //Get the transformed lines of text which represent the tiles on the board
+        //As a 2d array of chars
+        char[][] chars = Arrays.stream(getLinesText(xLength))
+                .map(String::toCharArray)
+                .toList().toArray(new char[0][0]);
+
+        PlinkoTile[][] plinkoTileGrid = new PlinkoTile[chars.length][chars[0].length];
+
+        //Traverse from left to right, bottom to top
+        for (int i = plinkoTileGrid.length - 1; i >= 0; i--) {
+            for (int j = 0; j < plinkoTileGrid[i].length; j++) {
+                switch (chars[i][j]) {
+                    case ' ':
+                        plinkoTileGrid[i][j] = new PlinkoTile(false, null);
+                        break;
+                    case '-':
+                        plinkoTileGrid[i][j] = new PlinkoTile(true, null);
+                        break;
+                    case 'Q', '@', '|', 'X':
+                        plinkoTileGrid[i][j] = new PlinkoTile(false, new PlinkoSolidObject(PlinkoSolidObject.SolidType.fromChar(chars[i][j])));
+                        break;
+                    default:
+                        throw new MalformedPatternException(chars[i][j]);
+                }
+            }
+        }
+
+        return plinkoTileGrid;
+    }
+
+    public PatternTag[] getTags() {
+        return tags;
     }
 
     public int getId() {

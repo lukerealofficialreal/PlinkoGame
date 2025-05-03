@@ -13,17 +13,30 @@ public class PlinkoSolidObject extends PlinkoObject{
 
 
     public enum SolidType {
-        BOARD_PIN('Q'), PLACED_PIN('@'), WALL('|'), BALL_SOLIDIFIED('X');
+        BOARD_PIN(TextGraphics.CHAR_BOARD_PIN),
+        PLACED_PIN(TextGraphics.CHAR_PLACED_PIN),
+        WALL(TextGraphics.CHAR_WALL),
+        BALL_SOLIDIFIED(TextGraphics.CHAR_BALL_SOLIDIFIED);
 
-        private char repChar;
+        private final char repChar;
 
         SolidType(char repChar) { this.repChar = repChar; }
+
+        public static SolidType fromChar(char character) {
+            for (SolidType solidType : SolidType.values()) {
+                if (solidType.repChar == character) {
+                    return solidType;
+                }
+            }
+            throw new IllegalArgumentException("Invalid plinko object: '%c'".formatted(character));
+        }
+
         public char getRepChar() { return repChar; }
     }
 
     //Constructor with default ownerId (Object belongs to Server)
-    public PlinkoSolidObject(int xPos, int yPos, SolidType type) {
-        super(xPos, yPos, SERVER_ID);
+    public PlinkoSolidObject(SolidType type) {
+        super(SERVER_ID);
 
         //No objects owned by the server have a lifetime
         this.lifeTime = INF_LIFETIME;
@@ -34,8 +47,8 @@ public class PlinkoSolidObject extends PlinkoObject{
     //Pass lifeTime of INF_LIFETIME to give the object an infinite lifetime
     //Pass PLACED_PIN_LIFETIME for the standard lifeTime of a placed pin
     //
-    public PlinkoSolidObject(int xPos, int yPos, int ownerId, SolidType type, long lifeTime) {
-        super(xPos, yPos, ownerId);
+    public PlinkoSolidObject(int ownerId, SolidType type, long lifeTime) {
+        super(ownerId);
 
         if(ownerId != SERVER_ID) {
             this.lifeTime = PLACED_PIN_LIFETIME;
@@ -48,7 +61,7 @@ public class PlinkoSolidObject extends PlinkoObject{
 
     //Constructor with ownerId
     public PlinkoSolidObject(PlinkoSolidObject other) {
-        super(other.xPos, other.yPos, other.ownerId);
+        super(other.ownerId);
         this.lifeTime = other.lifeTime;
         this.type = other.type;
     }
@@ -61,7 +74,7 @@ public class PlinkoSolidObject extends PlinkoObject{
         }
 
         //TODO: Make this value useful in creating a unique value for the entire state change
-        return getSequentialPos(containerMaxXLen) * lifeTime;
+        return 2;
     }
 
     //returns false if lifeTime is expired

@@ -187,15 +187,31 @@ An example of what the text representation of a plinko board might look like
 // The server will instead send the entire game state
 
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class PlinkoBoard {
-    private static final String BOARD_PATTERNS_PATH = System.getProperty("user.dir") + "BoardPatterns.json";
-    private static BoardPatternGenerator boardPatternGenerator = new BoardPatternGenerator(BOARD_PATTERNS_PATH);
+    private static final String BOARD_PATTERNS_PATH = System.getProperty("user.dir") + "/" + "BoardPatterns.json";
+    private static BoardPatternGenerator boardPatternGenerator;
+
+    static {
+        try {
+            boardPatternGenerator = new BoardPatternGenerator(BOARD_PATTERNS_PATH);
+        } catch (IOException e) {
+            System.err.printf("failed to read '%s.'\n",BOARD_PATTERNS_PATH);
+            System.exit(1);
+        }
+    }
 
     private static final int Y_DIM = 22; //The maximum Y height of the board
 
     private static final int MIN_X_DIM = 10; //The minimum width a board can be
+    private static final int MAX_X_DIM = 100; //The maximum width a board can be
+
     private static final int X_INC_INTERVAL = 5; //The amount that the board width can increase by
 
     private int xLen; //The number of tiles in the X dimension (including outer walls)
@@ -210,14 +226,12 @@ public class PlinkoBoard {
     //If the game is being run locally, this should always be the current state
     private PlinkoBoard validState;
 
-    //Data structure to store permanent board objects
-    //Persist when the map resets
-    //Should be the same at the start of a game and the end of a game
-    //Every object included here should also be included in boardArray
-    private ArrayList<PlinkoObject> persistantObjs;
+    //BoardArr which contains only the references to permanent board objects
+    private final PlinkoTile[][] initBoardArr;
 
     //2D array of tiles which make up the plinko board
-    private Tile<PlinkoObject>[][] boardArr;
+    //Each tile can store a plinko object
+    private PlinkoTile[][] boardArr;
 
     //Creates an empty board of the given size
     public PlinkoBoard(int numPlayers) {
@@ -231,33 +245,121 @@ public class PlinkoBoard {
         xLen = boardWidthFromPlayers(numPlayers);
         yLen = Y_DIM;
 
+        //Declare initial board
+        initBoardArr = generateBoard(xLen, yLen);
+
+
+        //Copy the references to the tiles in initBoardArr to boardArr
+        boardArr = new PlinkoTile[yLen][xLen];
+        for(int i = 0; i < initBoardArr.length; i++) {
+            System.arraycopy(initBoardArr[i], 0, boardArr[i], 0, initBoardArr.length);
+        }
+
         //The board state is initially presumed to be valid
-        validState = null;
-
-        persistantObjs =
-
+        validState = this;
     }
 
-    //Reads the board pattern file, parses the json to obtain a hashmap of board patterns
-    //builds the board randomly from these patterns
-    //Ensures the top and bottom of the board are neutral tiles
-    //TODO: generate board
-    public static void generateBoard(int xLen, int yLen, ) {
-        maxLen =
+    private PlinkoTile[][] generateBoard(int xLen, int yLen) {
+        PlinkoTile[][] board = new PlinkoTile[yLen][xLen];
+
+        if(yLen%BoardPattern.PATTERN_HEIGHT != 0) {
+            throw new IllegalArgumentException("Board height not divisible by pattern height.");
+        }
+        int numBoardPatterns = yLen/BoardPattern.PATTERN_HEIGHT;
+
+        //There are certain locations on the board which should use specific categories of patterns.
+        //For example, some spots of the board can use more empty sets of tiles so the board is not overly crowded.
+        //This is accomplished by including the "sparse" tag
+        //
+        //There are also certain categories of patterns that should only be used at certain locations on the board.
+        //For example, the dropper and score pits should only ever appear at the top and bottom of the board
+        //respectively. This is accomplished by excluding the "dropper" and "score_pit" tags from all locations except
+        //the top and bottom.
+        //
+        //Use patternTags to restrict which patterns can be used at certain locations on the board.
+
+        ArrayList<ArrayList<PatternTag>> include = new ArrayList<ArrayList<PatternTag>>(
+                Collections.nCopies(numBoardPatterns,new ArrayList<PatternTag>(
+                        List.of(PatternTag.any)
+                )));
+        ArrayList<ArrayList<PatternTag>> exclude = new ArrayList<ArrayList<PatternTag>>(
+                Collections.nCopies(numBoardPatterns,new ArrayList<PatternTag>(
+                        Arrays.asList(PatternTag.dropper, PatternTag.score_pit)
+                )));
+
+        //Hard code tags for certain areas of the board
+        include.set(0, new ArrayList<PatternTag>(List.of(PatternTag.dropper)));
+        exclude.set(0, new ArrayList<PatternTag>(List.of()));
+
+        include.set(1, new ArrayList<PatternTag>(List.of(PatternTag.below_dropper)));
+        exclude.set(1, new ArrayList<PatternTag>(List.of()));
+
+        include.set(5, new ArrayList<PatternTag>(List.of(PatternTag.sparse)));
+        include.set(numBoardPatterns-4, new ArrayList<PatternTag>(List.of(PatternTag.sparse)));
+        include.set(numBoardPatterns-3, new ArrayList<PatternTag>(List.of(PatternTag.standard)));
+
+        include.set(numBoardPatterns-2, new ArrayList<PatternTag>(List.of(PatternTag.above_pit)));
+        exclude.set(numBoardPatterns-2, new ArrayList<PatternTag>(List.of()));
+
+        include.set(numBoardPatterns-1, new ArrayList<PatternTag>(List.of(PatternTag.score_pit)));
+        exclude.set(numBoardPatterns-1, new ArrayList<PatternTag>(List.of()));
+
+        //Fill out the board with tiles from random tile patterns
+        for(int i = 0; i < yLen; i+=BoardPattern.PATTERN_HEIGHT)
+        {
+            //Generate a randomly transformed BoardPattern
+            ArrayList<PatternTag> currInclude = include.get(i/BoardPattern.PATTERN_HEIGHT);
+            ArrayList<PatternTag> currExclude = exclude.get(i/BoardPattern.PATTERN_HEIGHT);
+
+            BoardPattern pattern;
+            if(currExclude.isEmpty()) {
+                pattern = boardPatternGenerator.genRandomPatternWithRandomTransformation(
+                        xLen,
+                        currInclude.toArray(new PatternTag[0]));
+            } else {
+                pattern = boardPatternGenerator.genRandomPatternWithRandomTransformation(
+                        xLen,
+                        currInclude.get(0),
+                        currExclude.toArray(new PatternTag[0]));
+            }
+
+            //Get rows of tiles from the board pattern
+            //And add them to the board
+            String[] test = pattern.getLinesText();
+            System.out.println(test[0]);
+            System.out.println(test[1]);
+
+            PlinkoTile[][] tiles = pattern.getPlinkoTiles(xLen);
+            for(int j = i; j < BoardPattern.PATTERN_HEIGHT; j++) {
+                System.arraycopy(tiles[j], 0, board[j], 0, xLen);
+            }
+        }
+        return board;
     }
 
-    //Reads board patterns from file and returns a hashmap
-    public void readBoardPatterns() {
-
+    //Get the text representation of each line of the board in an array
+    public String[] getBoardAsText() {
+        String[] strings = new String[boardArr.length];
+        for(int i = 0; i < boardArr.length; i++) {
+            //Get stream of representative chars from the current row of tiles,
+            //Convert each char to a string
+            //Join all created strings
+            strings[i] = Arrays.stream(boardArr[i])
+                    .map(PlinkoTile::getRepresentativeChar)
+                    .map(Object::toString)
+                    .collect(Collectors.joining());
+        }
+        return strings;
     }
 
     //This function will need fine-tuning and playtesting to determine how the board width should grow as
     //number of player increase
     //TODO: add logic which will grow the board as more players exist.
+    //      for now, each player increases board width by 5
     public static int boardWidthFromPlayers(int numPlayers) {
         int xDim = 0;
-
-        return Math.max(xDim, MIN_X_DIM);
+        xDim += 5*numPlayers;
+        return Math.min(Math.max(xDim, MIN_X_DIM), MAX_X_DIM);
     }
 
 }
