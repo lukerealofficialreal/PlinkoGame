@@ -218,7 +218,13 @@ public class PlinkoBoard {
     private int yLen; //The number of tiles in the Y dimension (including outer walls)
 
     //the 'time' at which this state exists. Starts at 0 and increments for every full state update
-    private int stateNum = 0;
+    private long stateNum = 0;
+
+    private static final int SCORE_INCREMENT = 1;
+    private int score = 0;
+
+    private static final int STARTING_BALLS = 5;
+    private int balls = STARTING_BALLS;
 
     //The patterns used to construct the board
     BoardPattern[] patterns;
@@ -232,10 +238,18 @@ public class PlinkoBoard {
 
     //BoardArr which contains only the references to permanent board objects
     private final PlinkoTile[][] initBoardArr;
+    private static final int SCORE_PIT_LOCATION = 1;
+    private static final int SCORE_PIT_WIDTH = 5;
+    private static final int SCORE_PIT_PIT_WIDTH = 3;
+    private final PlinkoTile[][] scorePits; //The row of the board which contains the tiles which act as score pits
+                                            //Each pit is a group of 3 tiles
 
     //2D array of tiles which make up the plinko board
     //Each tile can store a plinko object
     private PlinkoTile[][] boardArr;
+
+    //Tiles which contain objects owned by players
+    private List<PlinkoTile> playerObjectTiles = new ArrayList<>();
 
     //Creates an empty board of the given size
     public PlinkoBoard(int numPlayers) {
@@ -258,6 +272,27 @@ public class PlinkoBoard {
         this.boardArr = new PlinkoTile[yLen][xLen];
         for(int i = 0; i < initBoardArr.length; i++) {
             System.arraycopy(initBoardArr[i], 0, boardArr[i], 0, initBoardArr[i].length);
+        }
+
+        //Store the locations of each score pit
+        PlinkoTile[] scorePitRow = boardArr[SCORE_PIT_LOCATION];
+
+        scorePits = new PlinkoTile[xLen/SCORE_PIT_WIDTH][SCORE_PIT_PIT_WIDTH];
+
+        int currPit = 0; //-1 to account for the first tile being a wall
+        int currTile = 0;
+        boolean newPit = false;
+        for(PlinkoTile tile : scorePitRow) {
+            if(tile.getObj() == null) {
+                scorePits[currPit][currTile] = tile;
+                currTile++;
+                newPit = true;
+            } else {
+                if(newPit)
+                    currPit++;
+                currTile = 0;
+                newPit = false;
+            }
         }
 
         //The board state is initially presumed to be valid
@@ -392,6 +427,159 @@ public class PlinkoBoard {
         return strings;
     }
 
+    //Updates every player owned object on the board
+    public void updateBoard() {
+        for(PlinkoTile tile : playerObjectTiles) { //Concurrent modification exception ???
+            updatePlayerOwnedObject(tile);
+        }
+    }
+
+    public void updatePlayerOwnedObject(PlinkoTile tile) {
+        switch(tile.getObj()) {
+            case PlinkoSolidObject plinkoSolidObject:
+                plinkoSolidObject.updateTimer();
+                //Check if the solid object is still alive. If not, get rid of it
+                if(!plinkoSolidObject.isAlive()) {
+                    tile.ClearTile();
+                    playerObjectTiles.remove(tile);
+                }
+                break;
+            case PlinkoBallObject plinkoBallObject:
+                //Check if the ball can score.
+                //if it can, increase the score
+                if(plinkoBallObject.getyPos() == 1){
+                    scoreBall(plinkoBallObject);
+                    playerObjectTiles.remove(tile);
+                    break;
+                }
+                //Prepare a list of movements
+                //For each direction, check if it is possible for the ball to move in that direction
+                List<MovementEnum> validMovements = new ArrayList<>();
+                int[] leftPosition = MovementEnum.LEFT.newPosition(new int[]
+                        {plinkoBallObject.getxPos(),plinkoBallObject.getyPos()});
+                if(!getTileAtPos(leftPosition[0],leftPosition[1]).isOccupied() &&
+                        getTileAtPos(leftPosition[0],leftPosition[1]).canOccupy(plinkoBallObject)){
+                    validMovements.add(MovementEnum.LEFT);
+                }
+                int[] rightPosition = MovementEnum.RIGHT.newPosition(new int[]
+                        {plinkoBallObject.getxPos(),plinkoBallObject.getyPos()});
+                if(!getTileAtPos(rightPosition[0],rightPosition[1]).isOccupied() &&
+                        getTileAtPos(rightPosition[0],rightPosition[1]).canOccupy(plinkoBallObject)){
+                    validMovements.add(MovementEnum.RIGHT);
+                }
+                int[] downPosition = MovementEnum.DOWN.newPosition(new int[]
+                        {plinkoBallObject.getxPos(),plinkoBallObject.getyPos()});
+                if(!getTileAtPos(downPosition[0],downPosition[1]).isOccupied() &&
+                        getTileAtPos(downPosition[0],downPosition[1]).canOccupy(plinkoBallObject)){
+                    validMovements.add(MovementEnum.DOWN);
+                }
+                //Get the movement direction from the ball
+                MovementEnum direction = plinkoBallObject.movementDecision(validMovements);
+
+                //If no direction was returned, then the ball is stuck. solidify the ball and surounding objects
+                if(direction == null) {
+                    solidifyObjectsAroundLocation(plinkoBallObject.getxPos(), plinkoBallObject.getyPos());
+                    break;
+                }
+
+                //Move the ball in the given direction
+                int[] newPosition = direction.newPosition(new int[]
+                        {plinkoBallObject.getxPos(),plinkoBallObject.getyPos()});
+                PlinkoTile newTile = getTileAtPos(newPosition[0], newPosition[1]);
+                newTile.setObj(tile.floatObj());
+                playerObjectTiles.remove(tile);
+                playerObjectTiles.add(newTile);
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid PlinkoObject!");
+
+        }
+    }
+
+    //Turns any player-placed objects at or directly touching the given location into BALL_SOLIDIFIED
+    public void solidifyObjectsAroundLocation(int xLoc, int yLoc) {
+        int[] target = new int[] {xLoc, yLoc};
+
+        int[][] locations = new int[][] {target,
+                MovementEnum.UP.newPosition(target),
+                MovementEnum.DOWN.newPosition(target),
+                MovementEnum.LEFT.newPosition(target),
+                MovementEnum.RIGHT.newPosition(target)};
+
+        for(int[] location : locations) {
+            PlinkoTile tile = getTileAtPos(location[0], location[1]);
+            if(tile.isOccupied() && tile.getObj().ownerId != PlinkoObject.SERVER_ID) {
+                tile.setObj(new PlinkoSolidObject(
+                        tile.getObj().getOwnerId(),
+                        PlinkoSolidObject.SolidType.BALL_SOLIDIFIED));
+            }
+        }
+    }
+
+    //Fills the score pit at the corresponding xPos
+    public void scoreBall(PlinkoBallObject ball) {
+        int xPos = ball.getxPos();
+
+        PlinkoTile[] scorePit = scorePits[(xPos+3)/3];
+
+        //In the score pit, place ballSolid into all tiles in the score pit
+        PlinkoSolidObject ballSolidified = new PlinkoSolidObject(
+                ball.getOwnerId(),
+                PlinkoSolidObject.SolidType.BALL_SOLIDIFIED);
+
+        for(PlinkoTile tile : scorePit) {
+            tile.setObj(ballSolidified);
+        }
+
+        incrementScore();
+        //TODO: If all the score pits are full, clear them and give the ball runner a bonus
+    }
+
+    //Returns true if a ball can be placed in the given location
+    public boolean validBallLocation(int xLoc, int yLoc) {
+        return (yLoc == yLen-1) && !getTileAtPos(xLoc, yLoc).isOccupied();
+
+    }
+
+    //Adds a player created object to the specified location on the board
+    //precondition: the location must be valid for the given object
+    public void addObject(PlinkoObject obj, int xPos, int yPos) {
+        PlinkoTile tile = getTileAtPos(xPos, yPos);
+        playerObjectTiles.add(tile);
+        tile.setObj(obj);
+    }
+
+    //Gets the tile at the given positon
+    public PlinkoTile getTileAtPos(int xPos, int yPos) {
+        return boardArr[yLen-yPos][xPos];
+    }
+
+    public void incrementScore() {
+        score += SCORE_INCREMENT;
+    }
+
+    public int getScore() {
+        return score;
+    }
+
+    public void setScore(int score) {
+        this.score = score;
+    }
+
+    public long getStateNum() {
+        return stateNum;
+    }
+
+    public void setStateNum(long stateNum) {
+        this.stateNum = stateNum;
+    }
+
+    public void nextStateNum() {
+        this.stateNum++;
+    }
+
+
+
     //This function will need fine-tuning and playtesting to determine how the board width should grow as
     //number of player increase
     //TODO: add logic which will grow the board as more players exist.
@@ -402,4 +590,16 @@ public class PlinkoBoard {
         return Math.min(Math.max(xDim, MIN_X_DIM), MAX_X_DIM);
     }
 
+    public int getBalls() {
+        return balls;
+    }
+
+    public void setBalls(int balls) {
+        this.balls = balls;
+    }
+
+    //TODO: determine when there are no longer balls remaining or on the board
+    public boolean ballsInPlay() {
+        return balls > 0;
+    }
 }

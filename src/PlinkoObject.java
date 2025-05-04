@@ -3,16 +3,13 @@ public abstract class PlinkoObject extends RespectsNeutral {
     //protected static long nextObjId = 0;
 
     protected int ownerId;
-    protected int containerMaxXLen;
 
-    public PlinkoObject(int containerMaxXLen) {
+    public PlinkoObject() {
         this.ownerId = SERVER_ID;
-        this.containerMaxXLen = containerMaxXLen;
     }
 
-    public PlinkoObject(int ownerId, int containerMaxXLen) {
+    public PlinkoObject(int ownerId) {
         this.ownerId = ownerId;
-        this.containerMaxXLen = containerMaxXLen;
     }
 
 // Objects have locations, but no need to store them

@@ -1,7 +1,7 @@
 public class PlinkoSolidObject extends PlinkoObject{
 
     //Value which represents an infinite lifetime
-    private static final int INF_LIFETIME = -1;
+    public static final int INF_LIFETIME = -1;
 
     //The number of board updates before a placed pin is deleted
     public static final int PLACED_PIN_LIFETIME = 10;
@@ -47,7 +47,7 @@ public class PlinkoSolidObject extends PlinkoObject{
     //Pass lifeTime of INF_LIFETIME to give the object an infinite lifetime
     //Pass PLACED_PIN_LIFETIME for the standard lifeTime of a placed pin
     //
-    public PlinkoSolidObject(int ownerId, SolidType type, long lifeTime) {
+    public PlinkoSolidObject(int ownerId, SolidType type) {
         super(ownerId);
 
         if(ownerId != SERVER_ID) {
@@ -67,14 +67,12 @@ public class PlinkoSolidObject extends PlinkoObject{
     }
 
     //update object to the next state
-    //Return int which is *is useful in creating a unique value for the entire state change
-    public long next_state() {
+    //returns the new timer state
+    public long updateTimer() {
         if(lifeTime > 0) {
             lifeTime--;
         }
-
-        //TODO: Make this value useful in creating a unique value for the entire state change
-        return 2;
+        return lifeTime;
     }
 
     //returns false if lifeTime is expired
@@ -88,7 +86,10 @@ public class PlinkoSolidObject extends PlinkoObject{
 
     @Override
     public boolean canOccupy(boolean neutral) {
-        return false;
+        if(type == SolidType.BALL_SOLIDIFIED)
+            return true;
+        else
+            return !neutral;
     }
 
     public long getLifeTime() {
