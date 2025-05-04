@@ -55,9 +55,9 @@ public class PlinkoTile {
         if(isOccupied()) {
             return obj.getRepresentativeChar();
         } else if(isNeutral()) {
-            return TextGraphics.CHAR_EMPTY_NEUTRAL;
+            return DisplayedGraphics.CHAR_EMPTY_NEUTRAL;
         } else {
-            return TextGraphics.CHAR_EMPTY;
+            return DisplayedGraphics.CHAR_EMPTY;
         }
     }
 

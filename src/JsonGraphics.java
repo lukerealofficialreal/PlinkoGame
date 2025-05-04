@@ -1,5 +1,5 @@
 //Class which stores all text graphics in the game
-public class TextGraphics {
+public class JsonGraphics {
     public static final char CHAR_EMPTY = ' ';
     public static final char CHAR_EMPTY_NEUTRAL = '-';
     public static final char CHAR_BOARD_PIN = 'Q';

@@ -13,25 +13,26 @@ public class PlinkoSolidObject extends PlinkoObject{
 
 
     public enum SolidType {
-        BOARD_PIN(TextGraphics.CHAR_BOARD_PIN),
-        PLACED_PIN(TextGraphics.CHAR_PLACED_PIN),
-        WALL(TextGraphics.CHAR_WALL),
-        BALL_SOLIDIFIED(TextGraphics.CHAR_BALL_SOLIDIFIED);
+        BOARD_PIN(DisplayedGraphics.CHAR_BOARD_PIN, JsonGraphics.CHAR_BOARD_PIN),
+        PLACED_PIN(DisplayedGraphics.CHAR_PLACED_PIN, JsonGraphics.CHAR_PLACED_PIN),
+        WALL(DisplayedGraphics.CHAR_WALL, JsonGraphics.CHAR_WALL),
+        BALL_SOLIDIFIED(DisplayedGraphics.CHAR_BALL_SOLIDIFIED, JsonGraphics.CHAR_BALL_SOLIDIFIED);
 
-        private final char repChar;
+        private final char jsonChar;
+        private final char displayedChar;
 
-        SolidType(char repChar) { this.repChar = repChar; }
+        SolidType(char displayedChar, char jsonChar) { this.displayedChar = displayedChar; this.jsonChar = jsonChar; }
 
         public static SolidType fromChar(char character) {
             for (SolidType solidType : SolidType.values()) {
-                if (solidType.repChar == character) {
+                if (solidType.displayedChar == character || solidType.jsonChar == character) {
                     return solidType;
                 }
             }
             throw new IllegalArgumentException("Invalid plinko object: '%c'".formatted(character));
         }
 
-        public char getRepChar() { return repChar; }
+        public char getDisplayedChar() { return displayedChar; }
     }
 
     //Constructor with default ownerId (Object belongs to Server)
@@ -75,14 +76,18 @@ public class PlinkoSolidObject extends PlinkoObject{
         return lifeTime;
     }
 
-    //returns false if lifeTime is expired
+    //Freezes the timer
+    public void freezeTimer() {
+        lifeTime = INF_LIFETIME;
+    }
 
+    //returns false if lifeTime is expired
     public boolean isAlive() {
         return (lifeTime == INF_LIFETIME || lifeTime > 0);
     }
 
     @Override
-    public char getRepresentativeChar() { return type.getRepChar(); }
+    public char getRepresentativeChar() { return type.getDisplayedChar(); }
 
     @Override
     public boolean canOccupy(boolean neutral) {

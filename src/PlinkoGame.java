@@ -10,9 +10,9 @@ public class PlinkoGame {
     public static JFrame frame = new JFrame("Plinko Game");
 
     public static List<int[]> clickLocs = new ArrayList<>();
+    public static boolean notDisplayed = true;
 
-
-    public static final long FRAME_DURATION = 3000;
+    public static final long FRAME_DURATION = 1000;
 
     public static void main(String[] args) {
         //System.out.println("Plinko test");
@@ -39,7 +39,13 @@ public class PlinkoGame {
         TestPlinkoSocket testPlinkoSocket = new TestPlinkoSocket();
 
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.getContentPane().setLayout(new FlowLayout());
+        frame.getContentPane().setLayout(new OverlayLayout(frame.getContentPane()));
+        frame.setLocationRelativeTo(null);
+        frame.setAutoRequestFocus(false);
+
+        //ImageIcon icon = new ImageIcon(System.getProperty("user.dir") + "/" + "testBackground.png");
+        //JLabel label = new JLabel(icon);
+        //frame.getContentPane().add(label);
 
         //Create Game
         int numPlayers = 3;
@@ -56,28 +62,44 @@ public class PlinkoGame {
         PlinkoBoard plinkoBoard = new PlinkoBoard(numPlayers);
 
         //Start game loop
+        gameLoop:
         while(plinkoBoard.ballsInPlay()) {
             //Display initial board state
             System.out.printf("New state: %d\n",plinkoBoard.getStateNum());
-            updateText(
+            displayBoard(
                     plinkoBoard.getBoardAsText(),
                     plinkoBoard.getStateNum(),
                     plinkoBoard.getBalls(),
                     plinkoBoard.getScore());
 
+            //Update the state num
             plinkoBoard.nextStateNum();
 
-            //The player can make state updates for a short time before it is time to send updates to the server
+            //Update the existing objects on the board
+            plinkoBoard.updateBoard();
+
+            //The player can new objects for a short time before it is time to send updates to the server
             long time = System.currentTimeMillis();
             List<NewPlinkoObjectRec> myNewObjects = new ArrayList<>();
             while(System.currentTimeMillis() - time < FRAME_DURATION) {
                 int[] xyLocation;
-                synchronized (PlinkoGame.class) {
+                try {
+                    xyLocation = clickLocs.removeFirst();
+                } catch (NoSuchElementException e) {
                     try {
-                        xyLocation = clickLocs.removeFirst();
-                    } catch (NoSuchElementException e) {
+                        //If clickLocs is empty, wait for the player to click on the board.
+                        //If the frame passes before any clicks, stop waiting and update the board
+                        synchronized (PlinkoGame.class) {
+                            //FRAME_DURATION - (System.currentTimeMillis() - time)
+                            PlinkoGame.class.wait(FRAME_DURATION - (System.currentTimeMillis() - time));
+                        }
                         continue;
+                    } catch (InterruptedException d) {
+                        System.err.println("Core game loop interrupted!");
+                        System.err.println(e.getMessage());
+                        break gameLoop;
                     }
+
                 }
                 //check if this location corresponds to a valid ball drop location (if this client is the dropper)
                 //If so, create a new ball at this location and send it to the server
@@ -115,18 +137,10 @@ public class PlinkoGame {
                 plinkoBoard.addObject(rec.obj(),rec.xPos(),rec.yPos());
             }
 
-            //Update the board
-            //For reasons beyond my comprehension, this causes a concurrency error despite only being called in this
-            //thread (to my knowledge)
-
-            plinkoBoard.updateBoard();
-
        }
     }
 
-    public static void updateText(String[] strings, long numState, int numBalls, int numScore) {
-
-
+    public static void displayBoard(String[] strings, long numState, int numBalls, int numScore) {
         char[][] charArray2D = new char[strings.length][strings[0].length()];
         for (int i = 0; i < strings.length; i++) {
             for (int j = 0; j < strings[i].length(); j++) {
@@ -147,6 +161,8 @@ public class PlinkoGame {
         panel2.add(balls);
         panel2.add(score);
 
+
+        //background.add(panel1);
         masterPanel.add(panel2);
         masterPanel.add(panel1);
 
@@ -164,8 +180,9 @@ public class PlinkoGame {
                     @Override
                     public void mouseClicked(MouseEvent e) {
                         System.out.printf("clicked x=%d, y=%d\n", xPos, yPos);
-                        synchronized (this) {
+                        synchronized (PlinkoGame.class) {
                             clickLocs.add(new int[]{xPos, yPos});
+                            PlinkoGame.class.notify();
                         }
                     }
                 });
@@ -173,11 +190,18 @@ public class PlinkoGame {
             }
         }
 
+        /*
+        if(notDisplayed) {
+            notDisplayed = false;
+        } else {
+            frame.getContentPane().remove(1);
+        }
+
+         */
         frame.getContentPane().removeAll();
         frame.getContentPane().add(masterPanel);
 
         frame.pack();
-        frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
 

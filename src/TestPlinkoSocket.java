@@ -1,6 +1,8 @@
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 //Implements PlinkoSocketTemplate for the purpose of running the game locally
 public class TestPlinkoSocket implements PlinkoSocketTemplate{
@@ -19,24 +21,70 @@ public class TestPlinkoSocket implements PlinkoSocketTemplate{
 
     @Override
     public List<NewPlinkoObjectRec> getNewObjectsForNextState() {
-        return objFromClients;
+        //if objects share the same location, remove all but one of the objects
+        return objFromClients.stream().collect(
+                Collectors.groupingBy(p -> Objects.hash(p.xPos(), p.yPos())))
+                .values().stream().map(List::getFirst).toList();
+    }
+
+    @Override
+    public void sendNewObjectsForNextState(List<NewPlinkoObjectRec> objects) {
+
     }
 
     @Override
     public void sendNewObjectsToServer(List<NewPlinkoObjectRec> newObjects) {
+        //Discard the previous states new objects (should be a backup in the real implementation)
+        //Increment the state
+        //Add the new objects for the next state
+        objFromClients.clear();
         currState++;
         objFromClients.addAll(newObjects);
     }
 
-    //TODO: implement
     @Override
-    public boolean validateStateUpdates(int hashCode, int startStateNum, int endStateNum) {
+    public List<NewPlinkoObjectRec> getRequestedObjectsForNextState() {
+        return List.of();
+    }
+
+    @Override
+    public boolean validateStateUpdates(ValidationRequest request) {
         return false;
     }
 
-    //TODO: implement
     @Override
-    public List<List<NewPlinkoObjectRec>> getNewObjectsForStates(int startStateNum, int endStateNum) {
+    public ValidationRequest getValidationRequest() {
+        return null;
+    }
+
+    @Override
+    public void answerValidationRequest(boolean valid, int playerId) {
+
+    }
+
+    @Override
+    public List<List<NewPlinkoObjectRec>> getNewObjectsForStates(MultiStateRequest request) {
         return List.of();
     }
+
+    @Override
+    public MultiStateRequest getMulitStateRequest() {
+        return null;
+    }
+
+    @Override
+    public void answerMultiStateRequest(List<List<NewPlinkoObjectRec>> newObjects, int playerId) {
+
+    }
+
+    @Override
+    public InitGameRec getInitBoard() {
+        return null;
+    }
+
+    @Override
+    public void serverInitBoardToAllClients(InitGameRec init) {
+
+    }
+
 }

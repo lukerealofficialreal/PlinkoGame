@@ -78,13 +78,13 @@ public class BoardPattern {
         for (int i = plinkoTileGrid.length - 1; i >= 0; i--) {
             for (int j = 0; j < plinkoTileGrid[i].length; j++) {
                 switch (chars[i][j]) {
-                    case ' ':
+                    case JsonGraphics.CHAR_EMPTY:
                         plinkoTileGrid[i][j] = new PlinkoTile(false, null);
                         break;
-                    case '-':
+                    case JsonGraphics.CHAR_EMPTY_NEUTRAL:
                         plinkoTileGrid[i][j] = new PlinkoTile(true, null);
                         break;
-                    case 'Q', '@', '|', 'X':
+                    case JsonGraphics.CHAR_BOARD_PIN, JsonGraphics.CHAR_PLACED_PIN, JsonGraphics.CHAR_WALL, JsonGraphics.CHAR_BALL_SOLIDIFIED:
                         plinkoTileGrid[i][j] = new PlinkoTile(false, new PlinkoSolidObject(PlinkoSolidObject.SolidType.fromChar(chars[i][j])));
                         break;
                     default:
