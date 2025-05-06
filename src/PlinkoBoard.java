@@ -226,6 +226,8 @@ public class PlinkoBoard {
 
     //private static final int STARTING_BALLS = 5;
     private int balls;
+
+    //TODO: this value may get out of sync if a ball is next to a ball that has solidified
     private int ballsOnField = 0; //the number of balls on the field
 
     //The random number generator used to control random events in the game.
@@ -583,8 +585,8 @@ public class PlinkoBoard {
         for(PlinkoTile[] pit : scorePits) {
             for(PlinkoTile tile : pit) {
                 tile.clearTile();
-                balls++;
             }
+            balls++;
         }
     }
 

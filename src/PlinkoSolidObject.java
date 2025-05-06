@@ -4,7 +4,7 @@ public class PlinkoSolidObject extends PlinkoObject{
     public static final int INF_LIFETIME = -1;
 
     //The number of board updates before a placed pin is deleted
-    public static final int PLACED_PIN_LIFETIME = 10;
+    public static final int PLACED_PIN_LIFETIME = 5;
 
     //The number of "turns" this object has until it is destroyed
     private long lifeTime;

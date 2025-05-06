@@ -16,10 +16,10 @@ public interface PlinkoSocketTemplate {
     //methods to enable server to answer the above method
     void sendNewObjectsForNextState(List<NewPlinkoObjectRec> objects);
 
-    //A method which contains the objects which the client would like to see created in the next state update. These
+    //A method which contains the object which the client would like to see created in the next state update. These
     //objects are sent to the server. If an object's creation is valid, the server will include it in the next state
     //update. Else, it will be discarded.
-    void sendNewObjectsToServer(List<NewPlinkoObjectRec> newObjects);
+    void sendNewObjectsToServer(NewPlinkoObjectRec newObjects);
 
     //method to enable server to answer the above method for each client
     List<NewPlinkoObjectRec> getRequestedObjectsForNextState();

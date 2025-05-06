@@ -22,9 +22,11 @@ public class TestPlinkoSocket implements PlinkoSocketTemplate{
     @Override
     public List<NewPlinkoObjectRec> getNewObjectsForNextState() {
         //if objects share the same location, remove all but one of the objects
-        return objFromClients.stream().collect(
+        List<NewPlinkoObjectRec> newObjects =  objFromClients.stream().collect(
                 Collectors.groupingBy(p -> Objects.hash(p.xPos(), p.yPos())))
                 .values().stream().map(List::getFirst).toList();
+        objFromClients.clear();
+        return newObjects;
     }
 
     @Override
@@ -33,13 +35,12 @@ public class TestPlinkoSocket implements PlinkoSocketTemplate{
     }
 
     @Override
-    public void sendNewObjectsToServer(List<NewPlinkoObjectRec> newObjects) {
+    public void sendNewObjectsToServer(NewPlinkoObjectRec newObjects) {
         //Discard the previous states new objects (should be a backup in the real implementation)
         //Increment the state
         //Add the new objects for the next state
-        objFromClients.clear();
         currState++;
-        objFromClients.addAll(newObjects);
+        objFromClients.add(newObjects);
     }
 
     @Override

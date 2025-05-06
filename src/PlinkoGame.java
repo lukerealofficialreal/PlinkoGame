@@ -13,6 +13,7 @@ public class PlinkoGame {
     public static boolean notDisplayed = true;
 
     public static final long FRAME_DURATION = 1000;
+    public static final int MY_NEW_OBJECT_BUFFER_SIZE = 1; //The maximum amount of objects which the user can buffer
 
     public static void main(String[] args) {
         //System.out.println("Plinko test");
@@ -61,6 +62,10 @@ public class PlinkoGame {
         //Build the board
         PlinkoBoard plinkoBoard = new PlinkoBoard(numPlayers);
 
+        //Buffer which will hold the objects which the player wants to be added
+        //The player can only place 1 object per state, so extra objects will be sent one state later
+        List<NewPlinkoObjectRec> myNewObjectBuffer = new ArrayList<>();
+
         //Start game loop
         gameLoop:
         while(plinkoBoard.ballsInPlay()) {
@@ -80,7 +85,6 @@ public class PlinkoGame {
 
             //The player can new objects for a short time before it is time to send updates to the server
             long time = System.currentTimeMillis();
-            List<NewPlinkoObjectRec> myNewObjects = new ArrayList<>();
             while(System.currentTimeMillis() - time < FRAME_DURATION) {
                 int[] xyLocation;
                 try {
@@ -104,7 +108,7 @@ public class PlinkoGame {
                 //check if this location corresponds to a valid ball drop location (if this client is the dropper)
                 //If so, create a new ball at this location and send it to the server
                 if(plinkoBoard.getBalls() > 0 && plinkoBoard.validBallLocation(xyLocation[0], xyLocation[1])) {
-                    myNewObjects.add(new NewPlinkoObjectRec(plinkoBoard.getStateNum(),
+                    myNewObjectBuffer.add(new NewPlinkoObjectRec(plinkoBoard.getStateNum(),
                             new PlinkoBallObject(myId, xyLocation[0], xyLocation[1]),
                             xyLocation[0],
                             xyLocation[1]));
@@ -116,7 +120,7 @@ public class PlinkoGame {
                 PlinkoSolidObject pin = new PlinkoSolidObject(myId, PlinkoSolidObject.SolidType.PLACED_PIN);
                 if(!plinkoBoard.getTileAtPos(xyLocation[0],xyLocation[1]).isOccupied() &&
                         plinkoBoard.getTileAtPos(xyLocation[0],xyLocation[1]).canOccupy(pin)) {
-                    myNewObjects.add(new NewPlinkoObjectRec(plinkoBoard.getStateNum(),
+                    myNewObjectBuffer.add(new NewPlinkoObjectRec(plinkoBoard.getStateNum(),
                             pin,
                             xyLocation[0],
                             xyLocation[1]));
@@ -124,8 +128,14 @@ public class PlinkoGame {
                 }
             }
             //Send all objects to the server
-            testPlinkoSocket.sendNewObjectsToServer(myNewObjects);
+            if(!myNewObjectBuffer.isEmpty()) {
+                testPlinkoSocket.sendNewObjectsToServer(myNewObjectBuffer.removeFirst());
+            }
 
+            //Make sure the new object buffer is no longer than it's maximum size
+            if(MY_NEW_OBJECT_BUFFER_SIZE < myNewObjectBuffer.size()) {
+                myNewObjectBuffer.subList(MY_NEW_OBJECT_BUFFER_SIZE, myNewObjectBuffer.size()).clear();
+            }
 
             //The list of new objects which were created by players for this update
             //should be added to the board this update
