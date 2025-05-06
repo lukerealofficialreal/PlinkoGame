@@ -40,7 +40,7 @@ public class PlinkoTile {
     }
 
     //Removes plinko object from tile by setting obj to null
-    public void ClearTile() {
+    public void clearTile() {
         obj = null;
     }
 

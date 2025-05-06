@@ -103,7 +103,7 @@ public class PlinkoGame {
                 }
                 //check if this location corresponds to a valid ball drop location (if this client is the dropper)
                 //If so, create a new ball at this location and send it to the server
-                if(plinkoBoard.validBallLocation(xyLocation[0], xyLocation[1])) {
+                if(plinkoBoard.getBalls() > 0 && plinkoBoard.validBallLocation(xyLocation[0], xyLocation[1])) {
                     myNewObjects.add(new NewPlinkoObjectRec(plinkoBoard.getStateNum(),
                             new PlinkoBallObject(myId, xyLocation[0], xyLocation[1]),
                             xyLocation[0],

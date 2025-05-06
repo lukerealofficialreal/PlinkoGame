@@ -224,8 +224,9 @@ public class PlinkoBoard {
     private static final int SCORE_INCREMENT = 1;
     private int score = 0;
 
-    private static final int STARTING_BALLS = 5;
-    private int balls = STARTING_BALLS;
+    //private static final int STARTING_BALLS = 5;
+    private int balls;
+    private int ballsOnField = 0; //the number of balls on the field
 
     //The random number generator used to control random events in the game.
     //This should only be used to control random events which are shared between players.
@@ -286,6 +287,8 @@ public class PlinkoBoard {
         PlinkoTile[] scorePitRow = boardArr[yLen-1-SCORE_PIT_LOCATION];
 
         scorePits = new PlinkoTile[xLen/SCORE_PIT_WIDTH][SCORE_PIT_PIT_WIDTH];
+
+        balls = scorePits.length * 2; //twice as many balls as score pits
 
         int currPit = 0; //-1 to account for the first tile being a wall
         int currTile = 0;
@@ -461,7 +464,7 @@ public class PlinkoBoard {
                 plinkoSolidObject.updateTimer();
                 //Check if the solid object is still alive. If not, get rid of it
                 if(!plinkoSolidObject.isAlive()) {
-                    tile.ClearTile();
+                    tile.clearTile();
                     playerObjectTiles.remove(tile);
                 }
                 break;
@@ -502,6 +505,7 @@ public class PlinkoBoard {
                     //Do not solidify the ball if it is in the safe zone
                     if(plinkoBallObject.getyPos() < safeZone) {
                         solidifyObjectsAroundLocation(plinkoBallObject.getxPos(), plinkoBallObject.getyPos());
+                        ballsOnField--;
                     }
                     break;
                 }
@@ -557,8 +561,31 @@ public class PlinkoBoard {
             tile.setObj(ballSolidified);
         }
 
+        ballsOnField--;
+
         incrementScore();
-        //TODO: If all the score pits are full, clear them and give the ball runner a bonus
+
+        //if all the score pits are full, clear them and give the ball runner a bonus
+        emptyScorePitsIfFull();
+    }
+
+    public void emptyScorePitsIfFull() {
+        //If any of the score pits is not filled with an object, return
+        for(PlinkoTile[] pit : scorePits) {
+            for(PlinkoTile tile : pit) {
+                if(tile.getObj() == null) {
+                    return;
+                }
+            }
+        }
+        //else, the score pits must be full;
+        //  empty score pits, add ball for each pit
+        for(PlinkoTile[] pit : scorePits) {
+            for(PlinkoTile tile : pit) {
+                tile.clearTile();
+                balls++;
+            }
+        }
     }
 
     //Returns true if a ball can be placed in the given location
@@ -568,8 +595,14 @@ public class PlinkoBoard {
     }
 
     //Adds a player created object to the specified location on the board
+    //If that object is a ball, subtract 1 from the remaining balls
     //precondition: the location must be valid for the given object
     public void addObject(PlinkoObject obj, int xPos, int yPos) {
+        if(obj instanceof PlinkoBallObject) {
+            balls--;
+            ballsOnField++;
+        }
+
         PlinkoTile tile = getTileAtPos(xPos, yPos);
         playerObjectTiles.add(tile);
         tile.setObj(obj);
@@ -624,8 +657,8 @@ public class PlinkoBoard {
         this.balls = balls;
     }
 
-    //TODO: determine when there are no longer balls remaining or on the board
+    //Returns true if there are balls remaining or if there are balls on the field
     public boolean ballsInPlay() {
-        return balls > 0;
+        return ballsOnField > 0 || balls > 0;
     }
 }
