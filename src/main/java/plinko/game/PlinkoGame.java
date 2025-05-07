@@ -25,11 +25,6 @@ public class PlinkoGame {
     public static void main(String[] args) {
         //System.out.println("Plinko test");
 
-        //TODO: Potentially double layered bug:
-        //      The ball will sometimes be overridden by a pin. Only seems to occur when the pin is buffered
-        //      idea: Buffered pins somehow bypass the check to prevent placing on top of objects
-        //              AND the check performed by the "server" to prevent overriding objects is not sufficient
-
         //Bug: When new objects are created from clicks, the clicked tiles are checked for occupation immediatl
 
         //test cyclic string transformations

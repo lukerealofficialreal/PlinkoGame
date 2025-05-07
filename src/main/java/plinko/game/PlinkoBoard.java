@@ -189,6 +189,7 @@ An example of what the text representation of a plinko board might look like
 package main.java.plinko.game;
 
 import main.java.plinko.model.*;
+import main.java.plinko.model.records.InitGameRec;
 
 import java.io.IOException;
 import java.util.*;
@@ -230,7 +231,6 @@ public class PlinkoBoard {
     //private static final int STARTING_BALLS = 5;
     private int balls;
 
-    //TODO: this value may get out of sync if a ball is next to a ball that has solidified
     private int ballsOnField = 0; //the number of balls on the field
 
     //The random number generator used to control random events in the game.
@@ -245,7 +245,6 @@ public class PlinkoBoard {
     //Used to restore to a previous game state
     //
     //If the game is being run locally, this should always be the current state
-    //TODO: Implement copying the entire board object
     private PlinkoBoard validState;
 
     //BoardArr which contains only the references to permanent board objects
@@ -263,14 +262,89 @@ public class PlinkoBoard {
     //Tiles which contain objects owned by players
     private List<PlinkoTile> playerObjectTiles = new ArrayList<>();
 
+    //Copy constructor
+    public PlinkoBoard(PlinkoBoard other) {
+        this.safeZone = other.safeZone;
+        this.xLen = other.xLen;
+        this.yLen = other.yLen;
+        this.stateNum = other.stateNum;
+        this.score = other.score;
+        this.balls = other.balls;
+        this.ballsOnField = other.ballsOnField;
+        this.validState = other.validState;
+        this.initBoardArr = other.initBoardArr;
+
+        this.random = new RandomNumberGenerator(other.random);
+        this.patterns = other.patterns; //It's probably fine to shallow copy this
+
+        this.scorePits = new PlinkoTile[other.scorePits.length][other.scorePits[0].length];
+        for(int i = 0; i < other.scorePits.length; i++) {
+            for(int j = 0; j < other.scorePits[i].length; j++) {
+                this.scorePits[i][j] = new PlinkoTile(other.scorePits[i][j]);
+            }
+        }
+
+        this.boardArr = new PlinkoTile[other.boardArr.length][other.boardArr[0].length];
+        for(int i = 0; i < other.boardArr.length; i++) {
+            for(int j = 0; j < other.boardArr[i].length; j++) {
+                this.boardArr[i][j] = new PlinkoTile(other.boardArr[i][j]);
+            }
+        }
+
+        this.playerObjectTiles = other.playerObjectTiles.stream().map(PlinkoTile::new).toList();
+    }
+
+    //Creates a board from an init game record that was sent by the acting server which generated the board
+    public PlinkoBoard(InitGameRec init) {
+        //Get xLen from the number of players
+        this.xLen = boardWidthFromPlayers(init.numPlayers()); //using the received number of players
+        this.yLen = Y_DIM;
+
+        this.safeZone = (yLen-1)-SAFE_ZONE_SIZE;
+
+        //Declare initial board
+        this.patterns = init.patterns(); //using the received board patterns
+        this.initBoardArr = boardFromPatterns(patterns);
+
+
+        //Copy the references to the tiles in initBoardArr to boardArr
+        this.boardArr = new PlinkoTile[yLen][xLen];
+        for(int i = 0; i < initBoardArr.length; i++) {
+            System.arraycopy(initBoardArr[i], 0, boardArr[i], 0, initBoardArr[i].length);
+        }
+
+        //Store the locations of each score pit
+        PlinkoTile[] scorePitRow = boardArr[yLen-1-SCORE_PIT_LOCATION];
+
+        scorePits = new PlinkoTile[xLen/SCORE_PIT_WIDTH][SCORE_PIT_PIT_WIDTH];
+
+        balls = scorePits.length * 2; //twice as many balls as score pits
+
+        int currPit = 0; //-1 to account for the first tile being a wall
+        int currTile = 0;
+        boolean newPit = false;
+        for(PlinkoTile tile : scorePitRow) {
+            if(tile.getObj() == null) {
+                scorePits[currPit][currTile] = tile;
+                currTile++;
+                newPit = true;
+            } else {
+                if(newPit)
+                    currPit++;
+                currTile = 0;
+                newPit = false;
+            }
+        }
+
+        //Seed the random number generator
+        this.random = new RandomNumberGenerator(init.randomSeed());
+
+        //The board state is initially presumed to be valid
+        this.validState = new PlinkoBoard(this);
+    }
+
     //Creates an empty board of the given size
     public PlinkoBoard(int numPlayers) {
-        //Generate the board
-        //
-        //to generate the board:
-        //1. define the dimensions of the board
-        //2. read b
-
         //Get xLen from the number of players
         this.xLen = boardWidthFromPlayers(numPlayers);
         this.yLen = Y_DIM;
@@ -315,7 +389,7 @@ public class PlinkoBoard {
         this.random = new RandomNumberGenerator(new Random().nextInt());
 
         //The board state is initially presumed to be valid
-        this.validState = this; //TODO: This should be a deep copy.
+        this.validState = new PlinkoBoard(this);
     }
 
     private BoardPattern[] generatePatterns(int xLen, int yLen) {
@@ -658,12 +732,18 @@ public class PlinkoBoard {
 
     //This function will need fine-tuning and playtesting to determine how the board width should grow as
     //number of player increase
-    //TODO: add logic which will grow the board as more players exist.
-    //      for now, each player increases board width by 10
     public static int boardWidthFromPlayers(int numPlayers) {
         int xDim = 0;
         xDim += 10*numPlayers;
         return Math.min(Math.max(xDim, MIN_X_DIM), MAX_X_DIM);
+    }
+
+    public PlinkoBoard getValidState() {
+        return validState;
+    }
+
+    public void setValidState(PlinkoBoard validState) {
+        this.validState = validState;
     }
 
     public int getBalls() {

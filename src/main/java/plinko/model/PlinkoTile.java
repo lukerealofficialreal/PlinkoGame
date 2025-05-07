@@ -9,6 +9,11 @@ public class PlinkoTile {
     protected final boolean neutral;
     public PlinkoObject obj = null;
 
+    public PlinkoTile(PlinkoTile other) {
+        this.neutral = other.neutral;
+        this.obj = other.obj.copyOf();
+    }
+
     public PlinkoTile(boolean neutral, PlinkoObject obj) {
         this.neutral = neutral;
         this.obj = obj;

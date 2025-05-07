@@ -16,6 +16,9 @@ public abstract class PlinkoObject extends RespectsNeutral {
         this.ownerId = ownerId;
     }
 
+    //virtual copy constructor
+    abstract PlinkoObject copyOf();
+
 // Objects have locations, but no need to store them
 //    public int getxPos() {
 //        return xPos;
@@ -43,7 +46,6 @@ public abstract class PlinkoObject extends RespectsNeutral {
 
     //Returns the char which was chosen to represent this object
     abstract char getRepresentativeChar();
-
 
 //    public static long getNextObjId() {
 //        return nextObjId++;

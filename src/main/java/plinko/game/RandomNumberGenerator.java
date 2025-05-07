@@ -4,12 +4,15 @@ import java.nio.ByteBuffer;
 
 public class RandomNumberGenerator{
     private Long key;
+    private Long lastSeed;
 
-    public RandomNumberGenerator(long seed) {
-        this.key = advanceKey(seed);
+    public RandomNumberGenerator(long lastSeed) {
+        this.lastSeed = lastSeed;
+        this.key = advanceKey(lastSeed);
     }
 
     public RandomNumberGenerator(RandomNumberGenerator other) {
+        this.lastSeed = other.lastSeed;
         this.key = other.key;
     }
 
@@ -21,20 +24,35 @@ public class RandomNumberGenerator{
         return key;
     }
 
+    public Long getLastSeed() {
+        return lastSeed;
+    }
+
+    public void setLastSeed(Long lastSeed) {
+        this.lastSeed = lastSeed;
+    }
+
+    public void setKey(Long key) {
+        this.key = key;
+    }
+
     public boolean nextBoolean() {
         boolean val = (key%2 == 0);
+        lastSeed = advanceKey(lastSeed);
         key = advanceKey(key);
         return val;
     }
 
     public long nextLong() {
         long val = key;
+        lastSeed = advanceKey(lastSeed);
         key = advanceKey(key);
         return val;
     }
 
     public int nextInt() {
         int val = key.intValue();
+        lastSeed = advanceKey(lastSeed);
         key = advanceKey(key);
         return val;
     }

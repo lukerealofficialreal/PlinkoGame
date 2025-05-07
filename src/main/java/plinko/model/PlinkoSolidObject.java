@@ -72,6 +72,10 @@ public class PlinkoSolidObject extends PlinkoObject{
         this.type = other.type;
     }
 
+    public PlinkoObject copyOf() {
+        return new PlinkoSolidObject(this);
+    }
+
     //update object to the next state
     //returns the new timer state
     public long updateTimer() {

@@ -27,6 +27,11 @@ public class PlinkoBallObject extends PlinkoObject {
         super(other.ownerId);
         this.xPos = other.xPos;
         this.yPos = other.yPos;
+        this.lastMove = other.lastMove;
+    }
+
+    public PlinkoObject copyOf() {
+        return new PlinkoBallObject(this);
     }
 
     //Returns one of the valid directions, or null if passed no directions
