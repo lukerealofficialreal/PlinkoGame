@@ -11,7 +11,7 @@ public class PlinkoTile {
 
     public PlinkoTile(PlinkoTile other) {
         this.neutral = other.neutral;
-        this.obj = other.obj.copyOf();
+        this.obj = (other.getObj() == null) ? null : other.obj.copyOf();
     }
 
     public PlinkoTile(boolean neutral, PlinkoObject obj) {
