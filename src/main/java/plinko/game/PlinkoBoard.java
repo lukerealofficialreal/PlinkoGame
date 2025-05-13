@@ -252,7 +252,7 @@ public class PlinkoBoard {
     private static final int SCORE_PIT_LOCATION = 1;
     private static final int SCORE_PIT_WIDTH = 5;
     private static final int SCORE_PIT_PIT_WIDTH = 3;
-    private final PlinkoTile[][] scorePits; //The row of the board which contains the tiles which act as score pits
+    private PlinkoTile[][] scorePits; //The row of the board which contains the tiles which act as score pits
                                             //Each pit is a group of 3 tiles
 
     //2D array of tiles which make up the plinko board
@@ -294,31 +294,25 @@ public class PlinkoBoard {
         this.playerObjectTiles = other.playerObjectTiles.stream().map(PlinkoTile::new).toList();
     }
 
-    //Creates a board from an init game record that was sent by the acting server which generated the board
-    public PlinkoBoard(InitGameRec init) {
-        //Get xLen from the number of players
-        this.xLen = boardWidthFromPlayers(init.numPlayers()); //using the received number of players
-        this.yLen = Y_DIM;
-
-        this.safeZone = (yLen-1)-SAFE_ZONE_SIZE;
-
-        //Declare initial board
-        this.patterns = init.patterns(); //using the received board patterns
-        this.initBoardArr = boardFromPatterns(patterns);
-
+    //Resets the board to it's initial state
+    public void resetBoard() {
+        this.stateNum = 0;
+        this.score = 0;
 
         //Copy the references to the tiles in initBoardArr to boardArr
         this.boardArr = new PlinkoTile[yLen][xLen];
         for(int i = 0; i < initBoardArr.length; i++) {
-            System.arraycopy(initBoardArr[i], 0, boardArr[i], 0, initBoardArr[i].length);
+            for (int j = 0; j < initBoardArr[i].length; j++){
+                this.boardArr[i][j] = new PlinkoTile(this.initBoardArr[i][j]);
+            }
         }
 
         //Store the locations of each score pit
         PlinkoTile[] scorePitRow = boardArr[yLen-1-SCORE_PIT_LOCATION];
 
-        scorePits = new PlinkoTile[xLen/SCORE_PIT_WIDTH][SCORE_PIT_PIT_WIDTH];
+        this.scorePits = new PlinkoTile[xLen/SCORE_PIT_WIDTH][SCORE_PIT_PIT_WIDTH];
 
-        balls = scorePits.length * 2; //twice as many balls as score pits
+        this.balls = scorePits.length * 2; //twice as many balls as score pits
 
         int currPit = 0; //-1 to account for the first tile being a wall
         int currTile = 0;
@@ -336,38 +330,91 @@ public class PlinkoBoard {
             }
         }
 
-        //Seed the random number generator
-        this.random = new RandomNumberGenerator(init.randomSeed());
-
         //The board state is initially presumed to be valid
         this.validState = new PlinkoBoard(this);
+
     }
 
+    //Unneeded
+//    //Creates a board from an init game record that was sent by the acting server which generated the board
+//    public PlinkoBoard(InitGameRec init) {
+//        //Get xLen from the number of players
+//        this.xLen = boardWidthFromPlayers(init.numPlayers()); //using the received number of players
+//        this.yLen = Y_DIM;
+//
+//        this.safeZone = (yLen-1)-SAFE_ZONE_SIZE;
+//
+//        //Declare initial board
+//        this.patterns = init.patterns(); //using the received board patterns
+//        this.initBoardArr = boardFromPatterns(patterns);
+//
+//
+//        //Copy the references to the tiles in initBoardArr to boardArr
+//        this.boardArr = new PlinkoTile[yLen][xLen];
+//        for(int i = 0; i < initBoardArr.length; i++) {
+//            System.arraycopy(initBoardArr[i], 0, boardArr[i], 0, initBoardArr[i].length);
+//        }
+//
+//        //Store the locations of each score pit
+//        PlinkoTile[] scorePitRow = boardArr[yLen-1-SCORE_PIT_LOCATION];
+//
+//        scorePits = new PlinkoTile[xLen/SCORE_PIT_WIDTH][SCORE_PIT_PIT_WIDTH];
+//
+//        balls = scorePits.length * 2; //twice as many balls as score pits
+//
+//        int currPit = 0; //-1 to account for the first tile being a wall
+//        int currTile = 0;
+//        boolean newPit = false;
+//        for(PlinkoTile tile : scorePitRow) {
+//            if(tile.getObj() == null) {
+//                scorePits[currPit][currTile] = tile;
+//                currTile++;
+//                newPit = true;
+//            } else {
+//                if(newPit)
+//                    currPit++;
+//                currTile = 0;
+//                newPit = false;
+//            }
+//        }
+//
+//        //Seed the random number generator
+//        this.random = new RandomNumberGenerator(init.randSeed());
+//
+//        //The board state is initially presumed to be valid
+//        this.validState = new PlinkoBoard(this);
+//    }
+
     //Creates an empty board of the given size
-    public PlinkoBoard(int numPlayers) {
+    public PlinkoBoard(int numPlayers, long seed) {
         //Get xLen from the number of players
         this.xLen = boardWidthFromPlayers(numPlayers);
         this.yLen = Y_DIM;
 
         this.safeZone = (yLen-1)-SAFE_ZONE_SIZE;
 
+        //Initialize the random number generator
+        this.random = new RandomNumberGenerator(seed);
+
         //Declare initial board
-        this.patterns = generatePatterns(xLen, yLen);
+        this.patterns = generatePatterns(random, xLen, yLen);
         this.initBoardArr = boardFromPatterns(patterns);
 
 
         //Copy the references to the tiles in initBoardArr to boardArr
         this.boardArr = new PlinkoTile[yLen][xLen];
         for(int i = 0; i < initBoardArr.length; i++) {
-            System.arraycopy(initBoardArr[i], 0, boardArr[i], 0, initBoardArr[i].length);
+            for (int j = 0; j < initBoardArr[i].length; j++){
+                this.boardArr[i][j] = new PlinkoTile(this.initBoardArr[i][j]);
+            }
         }
 
         //Store the locations of each score pit
         PlinkoTile[] scorePitRow = boardArr[yLen-1-SCORE_PIT_LOCATION];
 
-        scorePits = new PlinkoTile[xLen/SCORE_PIT_WIDTH][SCORE_PIT_PIT_WIDTH];
+        this.scorePits = new PlinkoTile[xLen/SCORE_PIT_WIDTH][SCORE_PIT_PIT_WIDTH];
 
-        balls = scorePits.length * 2; //twice as many balls as score pits
+        this.balls = scorePits.length * 2; //twice as many balls as score pits
 
         int currPit = 0; //-1 to account for the first tile being a wall
         int currTile = 0;
@@ -385,14 +432,11 @@ public class PlinkoBoard {
             }
         }
 
-        //Seed the random number generator
-        this.random = new RandomNumberGenerator(new Random().nextInt());
-
         //The board state is initially presumed to be valid
         this.validState = new PlinkoBoard(this);
     }
 
-    private BoardPattern[] generatePatterns(int xLen, int yLen) {
+    private BoardPattern[] generatePatterns(RandomNumberGenerator random, int xLen, int yLen) {
         if(yLen%BoardPattern.PATTERN_HEIGHT != 0) {
             throw new IllegalArgumentException("Board height not divisible by pattern height.");
         }
@@ -456,21 +500,21 @@ public class PlinkoBoard {
             BoardPattern pattern;
             if(currExclude.isEmpty()) {
                 if(transformed) {
-                    pattern = boardPatternGenerator.genRandomPatternWithRandomTransformation(
+                    pattern = boardPatternGenerator.genRandomPatternWithRandomTransformation(random,
                             xLen,
                             currInclude.toArray(new PatternTag[0]));
                 } else {
-                    pattern = boardPatternGenerator.genRandomPattern(
+                    pattern = boardPatternGenerator.genRandomPattern(random,
                             currInclude.toArray(new PatternTag[0]));
                 }
             } else {
                 if(transformed) {
-                    pattern = boardPatternGenerator.genRandomPatternWithRandomTransformation(
+                    pattern = boardPatternGenerator.genRandomPatternWithRandomTransformation(random,
                             xLen,
                             currInclude.get(0),
                             currExclude.toArray(new PatternTag[0]));
                 } else {
-                    pattern = boardPatternGenerator.genRandomPattern(
+                    pattern = boardPatternGenerator.genRandomPattern(random,
                             currInclude.get(0),
                             currExclude.toArray(new PatternTag[0]));
                 }

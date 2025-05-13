@@ -16,6 +16,7 @@ public class TestPlinkoSocket implements PlinkoSocketTemplate{
     //List of updates sent from the client
     List<NewPlinkoObjectRec> objFromClients = new ArrayList<>();
 
+
 //    //List of lists of updates which might be decoded by the client during normal gameplay
 //    List<List<NewPlinkoObjectRec>> exampleUpdates = Arrays.asList(
 //            Arrays.asList(), //try an empty first state update
@@ -47,7 +48,7 @@ public class TestPlinkoSocket implements PlinkoSocketTemplate{
     }
 
     @Override
-    public void sendNewObjectsToServer(NewPlinkoObjectRec newObjects) {
+    public void sendNewObjectToServer(NewPlinkoObjectRec newObjects) {
         //Discard the previous states new objects (should be a backup in the real implementation)
         //Increment the state
         //Add the new objects for the next state
@@ -93,12 +94,12 @@ public class TestPlinkoSocket implements PlinkoSocketTemplate{
     }
 
     @Override
-    public InitGameRec getInitBoard() {
+    public InitGameRec getInitState() {
         return null;
     }
 
     @Override
-    public void serverInitBoardToAllClients(InitGameRec init) {
+    public void setInitState(InitGameRec init) {
 
     }
 

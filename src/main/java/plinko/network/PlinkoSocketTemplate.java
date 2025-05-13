@@ -26,7 +26,7 @@ public interface PlinkoSocketTemplate {
     //A method which contains the object which the client would like to see created in the next state update. These
     //objects are sent to the server. If an object's creation is valid, the server will include it in the next state
     //update. Else, it will be discarded.
-    void sendNewObjectsToServer(NewPlinkoObjectRec newObjects);
+    void sendNewObjectToServer(NewPlinkoObjectRec newObjects);
 
     //method to enable server to answer the above method for each client
     List<NewPlinkoObjectRec> getRequestedObjectsForNextState();
@@ -49,9 +49,9 @@ public interface PlinkoSocketTemplate {
     void answerMultiStateRequest(List<List<NewPlinkoObjectRec>> newObjects, int playerId);
 
     //A method which gets the data necessary to build the initial board state. Can only be called at the start of the game
-    InitGameRec getInitBoard();
+    InitGameRec getInitState();
 
     //method to enable server to answer the above method for each client
-    void serverInitBoardToAllClients(InitGameRec init);
+    void setInitState(InitGameRec init);
 
 }

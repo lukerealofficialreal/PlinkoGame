@@ -43,18 +43,18 @@ public class RandomNumberGenerator{
         return val;
     }
 
-    public long nextLong() {
+    public long nextPositiveLong() {
         long val = key;
         lastSeed = advanceKey(lastSeed);
         key = advanceKey(key);
-        return val;
+        return Math.abs(val);
     }
 
-    public int nextInt() {
+    public int nextPositiveInt() {
         int val = key.intValue();
         lastSeed = advanceKey(lastSeed);
         key = advanceKey(key);
-        return val;
+        return Math.abs(val);
     }
 
     public byte[] encrypt(byte[] data) {

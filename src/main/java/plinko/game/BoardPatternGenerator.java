@@ -25,7 +25,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 
 import main.java.plinko.model.BoardPattern;
 import main.java.plinko.model.PatternTag;
@@ -41,7 +40,7 @@ public class BoardPatternGenerator {
     }
 
     //Generates a new random board pattern which has one of the given tag(s)
-    public BoardPattern genRandomPattern(PatternTag[] tag) {
+    public BoardPattern genRandomPattern(RandomNumberGenerator random, PatternTag[] tag) {
 
         //Get a list of all patterns filtered to contain only patterns
         //with the given tags
@@ -68,11 +67,11 @@ public class BoardPatternGenerator {
         }
 
         //Return a copy of a pattern from a random index in the filtered list
-        return new BoardPattern(filteredPatterns.get((new Random()).nextInt(filteredPatterns.size())));
+        return new BoardPattern(filteredPatterns.get((random.nextPositiveInt()%filteredPatterns.size())));
     }
 
     //Generates a new random board pattern which has the give tag and does not have one of the given excluded tags
-    public BoardPattern genRandomPattern(PatternTag tag, PatternTag[] exclude) {
+    public BoardPattern genRandomPattern(RandomNumberGenerator random, PatternTag tag, PatternTag[] exclude) {
 
         //Get a list of all patterns filtered to contain only patterns
         //with the given tag
@@ -107,42 +106,40 @@ public class BoardPatternGenerator {
         }
 
         //Return a copy of a pattern from a random index in the filtered list
-        return new BoardPattern(filteredPatterns.get((new Random()).nextInt(filteredPatterns.size())));
+        return new BoardPattern(filteredPatterns.get((random.nextPositiveInt()%filteredPatterns.size())));
     }
 
 
     //Generate a pattern which has one of the given tag(s)
     //Applies a random transformation
-    public BoardPattern genRandomPatternWithRandomTransformation(int xLength, PatternTag[] tag) {
+    public BoardPattern genRandomPatternWithRandomTransformation(RandomNumberGenerator random, int xLength, PatternTag[] tag) {
         //Get a copy of a random board pattern of the given tag
-        BoardPattern randPattern = genRandomPattern(tag);
+        BoardPattern randPattern = genRandomPattern(random, tag);
 
         //Apply transformations
-        Random rand = new Random();
 
         //50/50 chance to flip the pattern
-        randPattern.setFlipped(rand.nextBoolean());
+        randPattern.setFlipped(random.nextBoolean());
 
         //randomly shift the board to the right by a number of tiles from 0 (inclusive) to xLength (exclusive)
-        randPattern.setxOffset(rand.nextInt(xLength));
+        randPattern.setxOffset(random.nextPositiveInt()%xLength);
 
         return randPattern;
     }
 
     //Generate a pattern which has the given tag and does not have the excluded tags
     //Applies a random transformation
-    public BoardPattern genRandomPatternWithRandomTransformation(int xLength, PatternTag tag, PatternTag[] exclude) {
+    public BoardPattern genRandomPatternWithRandomTransformation(RandomNumberGenerator random, int xLength, PatternTag tag, PatternTag[] exclude) {
         //Get a copy of a random board pattern of the given tag
-        BoardPattern randPattern = genRandomPattern(tag, exclude);
+        BoardPattern randPattern = genRandomPattern(random, tag, exclude);
 
         //Apply transformations
-        Random rand = new Random();
 
         //50/50 chance to flip the pattern
-        randPattern.setFlipped(rand.nextBoolean());
+        randPattern.setFlipped(random.nextBoolean());
 
         //randomly shift the board to the right by a number of tiles from 0 (inclusive) to xLength (exclusive)
-        randPattern.setxOffset(rand.nextInt(xLength));
+        randPattern.setxOffset(random.nextPositiveInt()%xLength);
 
         return randPattern;
     }
