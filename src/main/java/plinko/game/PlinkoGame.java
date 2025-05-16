@@ -5,6 +5,7 @@ import main.java.plinko.model.PlinkoSolidObject;
 import main.java.plinko.model.records.EndpointDataRec;
 import main.java.plinko.model.records.InitGameRec;
 import main.java.plinko.model.records.NewPlinkoObjectRec;
+import main.java.plinko.network.PlinkoRaftEndpoint;
 import main.java.plinko.network.PlinkoSocket;
 
 import javax.swing.*;
@@ -14,20 +15,49 @@ import java.awt.event.MouseEvent;
 import java.util.*;
 import java.util.List;
 
-public class PlinkoGame {
-    public static JFrame frame = new JFrame("Plinko Game");
+public class PlinkoGame extends Thread {
+    public JFrame frame = new JFrame("Plinko Game");
 
-    public static List<int[]> clickLocs = new ArrayList<>();
-    public static boolean notDisplayed = true;
+    public List<int[]> clickLocs = new ArrayList<>();
+
 
     public static final long FRAME_DURATION = 1000;
     public static final int CLICK_BUFFER_SIZE = 1; //The maximum amount of objects which the user can buffer
 
+    public static int endpointIndex = 0;
+    public static final ArrayList<EndpointDataRec> endpointData = new ArrayList<>(Arrays.asList(
+            new EndpointDataRec(
+                        "192.168.122.1", 27020
+    ), new EndpointDataRec(
+                        "192.168.123.1", 27021
+    ), new EndpointDataRec(
+                        "192.168.124.1", 27022
+    ), new EndpointDataRec(
+                        "192.168.125.1", 27023
+    )
+        ));
+
+    public static PlinkoSocket plinkoSocket = new PlinkoSocket(endpointData);
+
     public static void main(String[] args) {
+        int n = 4; // Number of threads
+        for (int i = 0; i < n; i++) {
+            PlinkoGame object = new PlinkoGame();
+            object.start();
+        }
+    }
+
+    @Override
+    public void run() {
 
         //Create the plinko socket using the known player endpoints
-        List<EndpointDataRec> endpointData = getEndpointData();
-        PlinkoSocket plinkoSocket = new PlinkoSocket(endpointData);
+        int myEndpointIndex = 0;
+        synchronized (this){
+            myEndpointIndex = endpointIndex;
+            endpointIndex++;
+        }
+
+        PlinkoRaftEndpoint myEndpoint = plinkoSocket.getEndpoint(endpointData.get(myEndpointIndex));
 
         //prepare board display
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -41,7 +71,7 @@ public class PlinkoGame {
         long randSeed = new Random().nextLong();
 
         //my player id (should be assigned by the server)
-        int myId = plinkoSocket.getMyId();
+        int myId = myEndpoint.getId();
 
         //Board generation strategy:
         //  Free for all;
@@ -71,6 +101,9 @@ public class PlinkoGame {
         int currPlayer = 0;
 
         //Start game loop
+        plinkoSocket.setState(0);
+
+        outerLoop:
         while(currPlayer < playerOrder.length) {
 
             //Is this client the ball runner
@@ -87,17 +120,55 @@ public class PlinkoGame {
                         plinkoBoard.getBalls(),
                         plinkoBoard.getScore());
 
-                //Update the state num
-                plinkoBoard.nextStateNum();
+
+                //wait until the next state
+                boolean notNextState = true;
+                //while(notNextState) {
+                    //If I am the leader, advance the board to the next state
+                if (plinkoSocket.isMyNodeLeader(myEndpoint)) {
+                    synchronized (this){//clear replicated objects
+                        plinkoSocket.clearObjects();
+
+                        //Advance replicated state
+                        //long lastState = plinkoSocket.advanceState(plinkoBoard.getStateNum() -1, plinkoBoard.getStateNum());
+                        long lastState = plinkoSocket.setState(plinkoBoard.getStateNum());
+
+                        if (lastState != plinkoBoard.getStateNum()) {
+                            System.out.println("state off by " + lastState);
+                        }
+                        plinkoBoard.nextStateNum();
+                        this.notifyAll();
+
+                    }
+                } else {
+                    try {
+                        synchronized (this) {
+                            this.wait();
+                            System.out.println("The wait is over!");
+                        }
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    long myState = plinkoSocket.getState();
+                    long boardState = plinkoBoard.getStateNum();
+                    if (myState > boardState) {
+                        plinkoBoard.nextStateNum();
+                    } else {
+                        throw new RuntimeException();
+                    }
+                }
 
                 //Update the existing objects on the board
                 plinkoBoard.updateBoard();
 
                 NewPlinkoObjectRec myNewObject = waitGetAndVerifyObject(FRAME_DURATION, plinkoBoard, myId);
 
-
-                //Send new object to the server
-                plinkoSocket.sendNewObjectToServer(myNewObject);
+                if(myNewObject.obj() != null) {
+                    //Send new object to the server
+                    boolean success = plinkoSocket.sendNewObjectToServer(myNewObject);
+                    System.out.println(success);
+                }
 
                 //The list of new objects which were created by players for this update
                 //should be added to the board this update
@@ -131,7 +202,7 @@ public class PlinkoGame {
     }
 
     //Waits for the given amount of time and gets the user's new object, or empty NewObjectRec if they made no input
-    public static NewPlinkoObjectRec waitGetAndVerifyObject(long milliseconds, PlinkoBoard board, int myId) {
+    public NewPlinkoObjectRec waitGetAndVerifyObject(long milliseconds, PlinkoBoard board, int myId) {
         //The player can new objects for a short time before it is time to send updates to the server
         long time = System.currentTimeMillis();
 
@@ -192,20 +263,20 @@ public class PlinkoGame {
         return newObject;
     }
 
-    //TODO: get real endpoint data
-    public static List<EndpointDataRec> getEndpointData() {
-        return new ArrayList<>(Arrays.asList(
-                new EndpointDataRec(
-                        "192.168.122.1", 27020
-                ), new EndpointDataRec(
-                        "192.168.123.1", 27021
-                ), new EndpointDataRec(
-                        "192.168.124.1", 27022
-                ), new EndpointDataRec(
-                        "192.168.125.1", 27023
-                )
-        ));
-    }
+//    //TODO: get real endpoint data
+//    public static List<EndpointDataRec> getEndpointData() {
+//        return new ArrayList<>(Arrays.asList(
+//                new EndpointDataRec(
+//                        "192.168.122.1", 27020
+//                ), new EndpointDataRec(
+//                        "192.168.123.1", 27021
+//                ), new EndpointDataRec(
+//                        "192.168.124.1", 27022
+//                ), new EndpointDataRec(
+//                        "192.168.125.1", 27023
+//                )
+//        ));
+//    }
 
     //Inplace shuffle on primitive int array
     public static void shuffleIntArray(int[] array, Random random)
@@ -221,7 +292,7 @@ public class PlinkoGame {
         }
     }
 
-    public static void displayBoard(String[] strings, long numState, int numBalls, int numScore) {
+    public void displayBoard(String[] strings, long numState, int numBalls, int numScore) {
         char[][] charArray2D = new char[strings.length][strings[0].length()];
         for (int i = 0; i < strings.length; i++) {
             for (int j = 0; j < strings[i].length(); j++) {
@@ -290,3 +361,4 @@ public class PlinkoGame {
     }
 
 }
+

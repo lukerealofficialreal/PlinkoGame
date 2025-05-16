@@ -110,6 +110,7 @@ public class CyclicString {
 
         currChar += grabbable;
 
+        resetPos(); //hacky solution to an error there is no time to fix
         return new String(result);
     }
 

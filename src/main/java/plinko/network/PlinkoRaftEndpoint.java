@@ -26,6 +26,14 @@ public final class PlinkoRaftEndpoint
     private final String address;
     private final int port;
 
+    public String getAddress() {
+        return address;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
     private PlinkoRaftEndpoint(int id, String address, int port) {
         this.id = id;
         this.address = address;
