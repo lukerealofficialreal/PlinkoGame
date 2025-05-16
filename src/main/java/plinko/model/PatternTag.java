@@ -2,9 +2,11 @@ package main.java.plinko.model;
 
 import main.java.plinko.Exceptions.TagFormatException;
 
+import java.io.Serializable;
+
 //The tags which a board pattern can make use of
 //"any" is a default tag which refers to all tags
-public enum PatternTag {
+public enum PatternTag implements Serializable {
     any, dropper, score_pit, below_dropper, above_pit, standard, sparse;
 
     //Converts a string into a PatternTag

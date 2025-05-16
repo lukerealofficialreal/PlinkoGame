@@ -1,8 +1,9 @@
 package main.java.plinko.game;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 
-public class RandomNumberGenerator{
+public class RandomNumberGenerator implements Serializable {
     private Long key;
     private Long lastSeed;
 

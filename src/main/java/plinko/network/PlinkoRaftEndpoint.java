@@ -3,6 +3,7 @@ package main.java.plinko.network;
 
 import io.microraft.RaftEndpoint;
 
+import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Objects.requireNonNull;
@@ -12,7 +13,7 @@ import static java.util.Objects.requireNonNull;
 import io.microraft.persistence.*;
 
 public final class PlinkoRaftEndpoint
-        implements RaftEndpoint, Comparable<PlinkoRaftEndpoint> {
+        implements RaftEndpoint, Comparable<PlinkoRaftEndpoint>, Serializable {
 
     private static final AtomicInteger ID_GENERATOR = new AtomicInteger();
 

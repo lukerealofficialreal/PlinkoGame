@@ -11,6 +11,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.*;
 import java.util.*;
 import java.util.List;
 
@@ -289,4 +290,30 @@ public class PlinkoGame {
         frame.setVisible(true);
     }
 
+    //plinko board serializer
+    // - note: filename must include file extension in the name
+    public static void serializeBoard(PlinkoBoard plinkoBoard, String filename) {
+        try (FileOutputStream fileOut = new FileOutputStream(filename); ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
+            out.writeObject(plinkoBoard);
+            System.out.println("Serialized data is saved in " +  filename);
+        } catch (IOException i) {
+            i.printStackTrace();
+        }
+    }
+
+    //plink board deserializer
+    //give filename that it will deserialize from
+    public static PlinkoBoard deserializeBoard(String filename) {
+        PlinkoBoard plinkoBoard = null;
+        try (FileInputStream fileIn = new FileInputStream(filename); ObjectInputStream in = new ObjectInputStream(fileIn)) {
+            plinkoBoard = (PlinkoBoard) in.readObject();
+            System.out.println("board deserialized");
+            return plinkoBoard;
+        } catch (IOException | ClassNotFoundException e) {
+            //when error happens it returns null
+            e.printStackTrace();
+            return plinkoBoard;
+        }
+    }
 }
+

@@ -192,10 +192,16 @@ import main.java.plinko.model.*;
 import main.java.plinko.model.records.InitGameRec;
 
 import java.io.IOException;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class PlinkoBoard {
+public class PlinkoBoard implements Serializable {
+    //this variable is needed to prevent unpredictable errors
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     private static final String BOARD_PATTERNS_PATH = System.getProperty("user.dir") + "/" + "BoardPatterns.json";
     private static BoardPatternGenerator boardPatternGenerator;
 
@@ -293,6 +299,7 @@ public class PlinkoBoard {
 
         this.playerObjectTiles = other.playerObjectTiles.stream().map(PlinkoTile::new).toList();
     }
+
 
     //Resets the board to it's initial state
     public void resetBoard() {

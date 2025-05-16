@@ -9,12 +9,13 @@ import main.java.plinko.model.records.NewPlinkoObjectRec;
 // - Duncan Zaug
 import io.microraft.persistence.*;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public class PlinkoRegister implements StateMachine{
+public class PlinkoRegister implements StateMachine, Serializable {
 
     //The target of a replication
     public enum UpdateTarget {

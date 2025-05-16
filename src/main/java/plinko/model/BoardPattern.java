@@ -12,9 +12,10 @@ import main.java.plinko.Exceptions.MalformedPatternException;
 import main.java.plinko.game.CyclicString;
 import main.java.plinko.resources.JsonGraphics;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
-public class BoardPattern {
+public class BoardPattern implements Serializable {
     public static final int PATTERN_HEIGHT = 2; //The number of rows in the board pattern
 
     private final int id; //integer id unique to this pattern

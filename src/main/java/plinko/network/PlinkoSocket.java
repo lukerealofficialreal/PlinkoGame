@@ -11,11 +11,12 @@ import main.java.plinko.model.records.*;
 // - Duncan Zaug
 import io.microraft.persistence.*;
 
+import java.io.Serializable;
 import java.util.*;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-public class PlinkoSocket implements PlinkoSocketTemplate {
+public class PlinkoSocket implements PlinkoSocketTemplate, Serializable {
     private List<RaftEndpoint> endpoints = new ArrayList<>();
     private List<LocalTransport> transports = new ArrayList<>();
     private List<RaftNode> raftNodes = new ArrayList<>();

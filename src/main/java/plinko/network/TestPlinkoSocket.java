@@ -5,6 +5,7 @@ import main.java.plinko.model.records.MultiStateRequest;
 import main.java.plinko.model.records.NewPlinkoObjectRec;
 import main.java.plinko.model.records.ValidationRequest;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -12,7 +13,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 //Implements PlinkoSocketTemplate for the purpose of running the game locally
-public class TestPlinkoSocket implements PlinkoSocketTemplate{
+public class TestPlinkoSocket implements PlinkoSocketTemplate,Serializable {
     //List of updates sent from the client
     List<NewPlinkoObjectRec> objFromClients = new ArrayList<>();
 

@@ -3,7 +3,9 @@ package main.java.plinko.model;
 import main.java.plinko.resources.DisplayedGraphics;
 import main.java.plinko.resources.JsonGraphics;
 
-public class PlinkoSolidObject extends PlinkoObject{
+import java.io.Serializable;
+
+public class PlinkoSolidObject extends PlinkoObject implements Serializable {
 
     //Value which represents an infinite lifetime
     public static final int INF_LIFETIME = -1;

@@ -2,7 +2,9 @@ package main.java.plinko.model;
 
 import main.java.plinko.game.RespectsNeutral;
 
-public abstract class PlinkoObject extends RespectsNeutral {
+import java.io.Serializable;
+
+public abstract class PlinkoObject extends RespectsNeutral implements Serializable {
     public static final int SERVER_ID = 0;
     //protected static long nextObjId = 0;
 
