@@ -10,6 +10,7 @@ public class PeerConnection implements Runnable {
     private Peer peer;
     private BufferedReader in;
     private PrintWriter out;
+    private String remoteId;
 
     public PeerConnection(Socket socket, Peer peer) throws IOException {
         this.socket = socket;
@@ -17,7 +18,10 @@ public class PeerConnection implements Runnable {
         this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         this.out = new PrintWriter(socket.getOutputStream(), true);
     }
-
+    public String getRemoteId() {
+        return remoteId;
+    }
+    
     public int getRemotePort() {
         return socket.getPort(); // or remote port
     }
@@ -30,7 +34,15 @@ public class PeerConnection implements Runnable {
         try {
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
+                if (inputLine.startsWith("HELLO:")) {
+                    String[] parts = inputLine.split(":");
+                    if (parts.length >= 2) {
+                        this.remoteId = parts[1];  // ✅ Set it here
+                    }
+                }
+                
                 peer.receiveMessage(inputLine, socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
+                
             }
         } catch (IOException e) {
             System.out.println("Connection lost: " + e.getMessage());

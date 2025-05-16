@@ -32,21 +32,13 @@ public class Testing {
             while (true) {
                 String line = sc.nextLine().trim();
                 
-                if (line.startsWith("bet ") || line.equals("check") || line.equals("fold")) {
-                    peer.sendMove(line);
-                }
-                else if (line.equalsIgnoreCase("ready")) {
+                if (line.equalsIgnoreCase("ready")) {
                     peer.sendReady();
                 }
-                else if (line.equalsIgnoreCase("reveal flop")) {
-                    peer.revealCommunity("flop");
+                else if (line.equalsIgnoreCase("hit") || line.equalsIgnoreCase("stand")) {
+                    peer.sendMove(line);
                 }
-                else if (line.equalsIgnoreCase("reveal turn")) {
-                    peer.revealCommunity("turn");
-                }
-                else if (line.equalsIgnoreCase("reveal river")) {
-                    peer.revealCommunity("river");
-                }
+                
                 
                 
             }

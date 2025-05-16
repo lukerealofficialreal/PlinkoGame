@@ -26,15 +26,15 @@ public class Peer {
     private Set<String> connectedPeerIds = new HashSet<>();
     private Map<String, Integer> knownPeers = new HashMap<>();
     private List<String> sortedPlayers;
+    private Map<String, List<String>> playerHands = new HashMap<>();
+    private Map<String, Boolean> isStanding = new HashMap<>();
+    private List<String> dealerHand = new ArrayList<>();
+
     private int currentTurnIndex = 0;
-    private int pot = 0;
-    private boolean roundActive = false;
-    private Map<String, List<String>> holeCards = new HashMap<>();
-    private List<String> communityCards = new ArrayList<>();
-    private int communityRevealStage = 0; // 0 = not revealed, 1 = flop, 2 = turn, 3 = river
-    private int turnsTakenInStage = 0;
-
-
+    private boolean gameStarted = false;
+    private boolean dealerDone = false;
+    private Set<String> seenMessages = Collections.synchronizedSet(new HashSet<>());
+    private boolean handReceived = false;
 
 
 
@@ -74,7 +74,9 @@ public class Peer {
 
     public void receiveMessage(String msg, String from) {
 
-    
+        if (seenMessages.contains(msg)) return;
+        seenMessages.add(msg);
+
         if (msg.startsWith("HELLO:")) {
             String[] parts = msg.split(":");
             if (parts.length >= 3) {
@@ -162,38 +164,52 @@ public class Peer {
                     allSeeds.putIfAbsent(this.peerId, mySeed);
         
                     if (allSeeds.size() == expectedPeerCount && !deckReady) {
-                        String combinedSeed = generateSharedSeed(allSeeds);
-                        this.deck = shuffledDeck(combinedSeed);
-                        this.deckReady = true;
-        
-                        sortedPlayers = new ArrayList<>(readyPeers);
-                        sortedPlayers.removeIf(x -> x == null); // safety
-                        Collections.sort(sortedPlayers);
-        
-                        // Deal hole cards
-                        for (int i = 0; i < sortedPlayers.size(); i++) {
-                            List<String> hand = new ArrayList<>(deck.subList(i * 2, i * 2 + 2));
-                            holeCards.put(sortedPlayers.get(i), hand);
+                        synchronized (this) {
+                            String combinedSeed = generateSharedSeed(allSeeds);
+                            this.deck = shuffledDeck(combinedSeed);
+                            deckReady = true;
+
+                            sortedPlayers = new ArrayList<>(readyPeers);
+                            Collections.sort(sortedPlayers);
+                    
+                            for (String player : sortedPlayers) {
+                                List<String> hand = new ArrayList<>();
+                                hand.add(deck.remove(0));
+                                hand.add(deck.remove(0));
+                                playerHands.put(player, hand);
+                                isStanding.put(player, false);
+                            }
+                            
+                            // Wait briefly to ensure PeerConnections receive HELLO and set remoteId
+                            try { Thread.sleep(300); } catch (InterruptedException ignored) {}
+                            
+                            for (String player : sortedPlayers) {
+                                if (player.equals(peerId)) {
+                                    System.out.println("🂠 Your hand: " + playerHands.get(player));
+                                    handReceived = true;
+                                } else {
+                                    sendPrivateMessage(player, "HAND:" + String.join(",", playerHands.get(player)));
+                                }
+                            }
+                            dealerHand.add(deck.remove(0));
+                            dealerHand.add(deck.remove(0));
+
+                            System.out.println("🂠 Dealer shows: " + dealerHand.get(0));
+                            System.out.println("🂠 Dealer hidden: " + dealerHand.get(1));
+
+
+                            // Wait until this peer has their hand before starting turn loop
+                            while (!handReceived) {
+                                try { Thread.sleep(50); } catch (InterruptedException ignored) {}
+                            }
+
+                            if (sortedPlayers.get(0).equals(peerId)) {
+                                broadcastMessage("TURN:" + sortedPlayers.get(0));
+                            }
+
                         }
-        
-                        int numPlayers = sortedPlayers.size();
-                        int holeEndIndex = numPlayers * 2;
-                        communityCards = new ArrayList<>(deck.subList(holeEndIndex, holeEndIndex + 5));
-        
-                        System.out.println("🂠 Your hole cards: " + holeCards.get(peerId));
                     }
-        
-                    if (!roundActive) {
-                        sortedPlayers = new ArrayList<>(readyPeers);
-                        sortedPlayers.removeIf(x -> x == null);
-                        Collections.sort(sortedPlayers);
-                        currentTurnIndex = 0;
-        
-                        if (sortedPlayers.get(0).equals(peerId)) {
-                            roundActive = true;
-                            broadcastMessage("TURN:" + sortedPlayers.get(currentTurnIndex));
-                        }
-                    }
+
                 }
             }
         }        
@@ -202,122 +218,123 @@ public class Peer {
             System.out.println("🔁 It is " + currentPlayer + "'s turn");
         
             if (currentPlayer.equals(peerId)) {
-                System.out.println("👉 Your turn! Type: check, bet <amount>, or fold");
+                System.out.println("👉 Your turn! Type: hit or stand");
             }
         }
         else if (msg.startsWith("MOVE:")) {
-            String[] parts = msg.split(":", 3);
-            String fromId = parts[1];
-            String action = parts[2];
-        
-            System.out.println("🎯 " + fromId + " chose: " + action.toUpperCase());
-        
             synchronized (this) {
-                if (action.startsWith("bet ")) {
-                    try {
-                        int amount = Integer.parseInt(action.split(" ")[1]);
-                        if (sortedPlayers.get(currentTurnIndex).equals(peerId)) {
-                            pot += amount;
-                            broadcastPot();
-                        }
-                    } catch (NumberFormatException e) {
-                        System.out.println("Invalid bet from " + fromId);
-                    }
+                if (!deckReady || deck == null) {
+                    System.out.println("⚠️ Deck not ready. Ignoring move: " + msg);
+                    return;
                 }
-            
-                // Advance turn if valid player
-                if (sortedPlayers.get(currentTurnIndex).equals(fromId)) {
-                    turnsTakenInStage++;
-            
-                    if (turnsTakenInStage >= sortedPlayers.size()) {
-                        turnsTakenInStage = 0;
-            
-                        if (communityRevealStage == 0) {
-                            broadcastMessage("COMMUNITY:FLOP:" + String.join(",", communityCards.subList(0, 3)));
-                            communityRevealStage = 1;
-                        } else if (communityRevealStage == 1) {
-                            broadcastMessage("COMMUNITY:TURN:" + communityCards.get(3));
-                            communityRevealStage = 2;
-                        } else if (communityRevealStage == 2) {
-                            broadcastMessage("COMMUNITY:RIVER:" + communityCards.get(4));
-                            communityRevealStage = 3;
-                        } else {
-                            System.out.println("🏁 All stages revealed.");
-                        }
-            
-                        currentTurnIndex = 0;
-                    } else {
-                        currentTurnIndex = (currentTurnIndex + 1) % sortedPlayers.size();
-                    }
-            
-                    broadcastMessage("TURN:" + sortedPlayers.get(currentTurnIndex));
-                }
-            }
-            
-            
         
-            // Advance turn if valid player
-            if (sortedPlayers.get(currentTurnIndex).equals(fromId)) {
-                turnsTakenInStage++;
-
-                if (turnsTakenInStage >= sortedPlayers.size()) {
-                    turnsTakenInStage = 0;
-
-                    // Reveal next stage of community cards
-                    if (communityRevealStage == 0) {
-                        broadcastMessage("COMMUNITY:FLOP:" + String.join(",", communityCards.subList(0, 3)));
-                        communityRevealStage = 1;
-                    } else if (communityRevealStage == 1) {
-                        broadcastMessage("COMMUNITY:TURN:" + communityCards.get(3));
-                        communityRevealStage = 2;
-                    } else if (communityRevealStage == 2) {
-                        broadcastMessage("COMMUNITY:RIVER:" + communityCards.get(4));
-                        communityRevealStage = 3;
-                    } else {
-                        System.out.println("🏁 All stages revealed.");
-                    }
-
-                    // Start next betting round
-                    currentTurnIndex = 0;
-                } else {
-                    currentTurnIndex = (currentTurnIndex + 1) % sortedPlayers.size();
+                String[] parts = msg.split(":", 3);
+                String fromId = parts[1];
+                String action = parts[2];
+        
+                // ❗ Only process move if it's the sender's turn
+                if (!sortedPlayers.get(currentTurnIndex).equals(fromId)) {
+                    System.out.println("⚠️ Ignoring MOVE from out-of-turn player: " + fromId);
+                    return;
                 }
-
-                broadcastMessage("TURN:" + sortedPlayers.get(currentTurnIndex));
-
+        
+                System.out.println("🎯 " + fromId + " chose: " + action.toUpperCase());
+        
+                if (action.equalsIgnoreCase("hit")) {
+                    if (fromId.equals(peerId)) {
+                        String newCard = deck.remove(0);
+                        if (!playerHands.containsKey(fromId)) {
+                            playerHands.put(fromId, new ArrayList<>());
+                        }
+                        playerHands.get(fromId).add(newCard);
+                            
+                        if (handValue(playerHands.get(fromId)) > 21) {
+                            System.out.println("💥 You busted!");
+                            isStanding.put(fromId, true);
+                            advanceTurn();
+                        }
+                    }
+                } else if (action.equalsIgnoreCase("stand")) {
+                    isStanding.put(fromId, true);
+                    advanceTurn();
+                }
             }
         }
-        else if (msg.startsWith("POT:")) {
-            pot = Integer.parseInt(msg.substring(4).trim());
-            System.out.println("💰 Pot updated: " + pot);
+        
+        else if (msg.startsWith("HITCARD:")) {
+            String[] parts = msg.split(":");
+            String targetId = parts[1];
+            String card = parts[2];
+        
+            if (targetId.equals(peerId)) {
+                synchronized (this) {
+                    if (!playerHands.containsKey(peerId)) {
+                        playerHands.put(peerId, new ArrayList<>());
+                    }
+                    playerHands.get(peerId).add(card);
+                }
+                System.out.println("🂡 You received: " + card);
+            } else {
+                System.out.println("🂡 " + targetId + " received a card");
+            }
+        }
+        
+        else if (msg.startsWith("HAND:")) {
+            String[] cards = msg.substring(5).split(",");
+            List<String> hand = new ArrayList<>();
+            Collections.addAll(hand, cards);
+        
+            synchronized (this) {
+                playerHands.put(peerId, hand);
+                handReceived = true;
+            }
+        
+            System.out.println("🂠 Your hand: " + hand);
         }
         
         
     }
     
-    public void revealCommunity(String stage) {
-        if (stage.equalsIgnoreCase("flop") && communityRevealStage == 0) {
-            broadcastMessage("COMMUNITY:FLOP:" + String.join(",", communityCards.subList(0, 3)));
-            communityRevealStage = 1;
-        } else if (stage.equalsIgnoreCase("turn") && communityRevealStage == 1) {
-            broadcastMessage("COMMUNITY:TURN:" + communityCards.get(3));
-            communityRevealStage = 2;
-        } else if (stage.equalsIgnoreCase("river") && communityRevealStage == 2) {
-            broadcastMessage("COMMUNITY:RIVER:" + communityCards.get(4));
-            communityRevealStage = 3;
-        } else {
-            System.out.println("⚠️ Invalid or duplicate stage.");
-        }
-    }
-    public void broadcastPot() {
-        broadcastMessage("POT:" + pot);
-    }
+
     
     public boolean hasConnectionTo(int port) {
         for (PeerConnection c : connections) {
             if (c.getRemotePort() == port) return true;
         }
         return false;
+    }
+    
+    public void advanceTurn() {
+        currentTurnIndex++;
+    
+        while (currentTurnIndex < sortedPlayers.size() &&
+            isStanding.getOrDefault(sortedPlayers.get(currentTurnIndex), false)) {
+            currentTurnIndex++;
+        }
+    
+        if (currentTurnIndex >= sortedPlayers.size()) {
+            dealerTurn();
+        } else {
+            broadcastMessage("TURN:" + sortedPlayers.get(currentTurnIndex));
+        }
+    }
+    public void dealerTurn() {
+        synchronized (this) {
+            if (dealerDone) return;  // ✅ Prevent running more than once
+            dealerDone = true;
+        }
+    
+        System.out.println("🧑‍⚖️ Dealer's hand: " + dealerHand);
+        int total = handValue(dealerHand);
+        while (total < 17) {
+            String newCard = deck.remove(0);
+            dealerHand.add(newCard);
+            System.out.println("🂡 Dealer draws: " + newCard);
+            total = handValue(dealerHand);
+        }
+    
+        System.out.println("🎲 Dealer total: " + total);
+        evaluateResults();
     }
     
     
@@ -327,6 +344,62 @@ public class Peer {
             .map(Map.Entry::getValue)
             .collect(Collectors.joining());
     }
+    public void evaluateResults() {
+        int dealerScore = handValue(dealerHand);
+        boolean dealerBust = dealerScore > 21;
+    
+        for (String player : sortedPlayers) {
+            int playerScore = handValue(playerHands.get(player));
+            boolean playerBust = playerScore > 21;
+    
+            String result;
+            if (playerBust) {
+                result = "LOSE";
+            } else if (dealerBust || playerScore > dealerScore) {
+                result = "WIN";
+            } else if (playerScore == dealerScore) {
+                result = "PUSH";
+            } else {
+                result = "LOSE";
+            }
+    
+            System.out.println("🏁 " + player + " result: " + result);
+            broadcastMessage("RESULT:" + player + ":" + result);
+        }
+    }
+    public int handValue(List<String> hand) {
+        int total = 0;
+        int aces = 0;
+    
+        for (String card : hand) {
+            String rank = card;
+    
+            if (rank.equals("A")) {
+                aces++;
+                total += 11;
+            } else if ("JQK".contains(rank)) {
+                total += 10;
+            } else {
+                total += Integer.parseInt(rank);
+            }
+        }
+    
+        while (total > 21 && aces > 0) {
+            total -= 10;
+            aces--;
+        }
+    
+        return total;
+    }
+    public void sendPrivateMessage(String targetId, String msg) {
+        for (PeerConnection conn : connections) {
+            String rid = conn.getRemoteId();
+            if (rid != null && rid.equals(targetId)) {
+                conn.sendMessage(msg);
+            }
+        }
+    }
+    
     
     public void sendReady() {
         String readyMsg = "READY:" + peerId;
