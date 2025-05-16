@@ -23,9 +23,11 @@ public final class LocalTransport
 
     private final RaftEndpoint localEndpoint;
     private final Map<RaftEndpoint, RaftNode> nodes = new ConcurrentHashMap<>();
+    //private RaftNode myNode;
 
     public LocalTransport(RaftEndpoint localEndpoint) {
         this.localEndpoint = requireNonNull(localEndpoint);
+
     }
 
     public RaftEndpoint getLocalEndpoint() {
@@ -45,6 +47,8 @@ public final class LocalTransport
             node.handle(message);
         }
     }
+
+
 
     @Override
     public boolean isReachable(RaftEndpoint endpoint) {

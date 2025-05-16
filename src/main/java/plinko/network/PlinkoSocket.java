@@ -19,26 +19,34 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 public class PlinkoSocket implements PlinkoSocketTemplate, Serializable {
     private List<RaftEndpoint> endpoints = new ArrayList<>();
     private List<LocalTransport> transports = new ArrayList<>();
+
+    //Remove for udp-transport implementation
     private List<RaftNode> raftNodes = new ArrayList<>();
     Map<RaftEndpoint, RaftNode> endpointToNode = new HashMap<>();
 
-    private RaftNode myNode;
+    //private RaftNode myNode;
 
-    public PlinkoSocket(List<EndpointDataRec> endpointData) {
+    public PlinkoSocket(List<EndpointDataRec> endpointData /* int myEndpointIndex*/) {
         //Create endpoints from endpoint data
         for (EndpointDataRec d : endpointData) {
             RaftEndpoint endpoint = PlinkoRaftEndpoint.newEndpoint(/*data*/d.address(), d.port());
             endpoints.add(endpoint);
         }
-        //Create and start raft nodes for each endpoint
+
+        //Create and start raft nodes
+        //int i = 0;
         for (RaftEndpoint e : endpoints) {
             RaftNode raftNode = createRaftNode(e);
+            //if(i == myEndpointIndex) {
+              //  this.myNode = raftNode;
+            //}
+            raftNodes.add(raftNode);
             endpointToNode.put(e, raftNode);
             raftNode.start();
+            //i++;
         }
 
-        //Get my endpoint
-        this.myNode = raftNodes.get(0); //Should be chosen based on the address
+        RaftNode leader = waitUntilLeaderElected();
 
     }
 
@@ -53,7 +61,7 @@ public class PlinkoSocket implements PlinkoSocketTemplate, Serializable {
                 .setInitialGroupMembers(endpoints).setTransport(transport)
                 .setStateMachine(stateMachine).build();
 
-        raftNodes.add(raftNode);
+
         transports.add(transport);
         enableDiscovery(raftNode, transport);
 
@@ -72,7 +80,7 @@ public class PlinkoSocket implements PlinkoSocketTemplate, Serializable {
 
     //Waits until leader is elected. Returns the leader.
     private RaftNode waitUntilLeaderElected() {
-        long deadline = System.currentTimeMillis() + 60000;
+        long deadline = System.currentTimeMillis() + 60000 + 600000000;
         while (System.currentTimeMillis() < deadline) {
             RaftEndpoint leaderEndpoint = getInitLeaderEndpoint();
             if (leaderEndpoint != null) {
@@ -118,17 +126,29 @@ public class PlinkoSocket implements PlinkoSocketTemplate, Serializable {
 
     //Returns the node which is the current leader (assuming one has already been elected)
     private RaftEndpoint getLeaderEndpoint() {
-        return myNode.getTerm().getLeaderEndpoint();
+        //return myNode.getTerm().getLeaderEndpoint();
+        return getInitLeaderEndpoint();
     }
 
     //Returns the node which is the current leader (assuming one has already been elected)
     private RaftNode getLeaderNode() {
-        return endpointToNode.get(myNode.getTerm().getLeaderEndpoint());
+        //RaftTerm a = myNode.getTerm();
+        //return endpointToNode.get(myNode.getTerm().getLeaderEndpoint());
+        return endpointToNode.get(getInitLeaderEndpoint());
     }
 
     //Gets the ID belonging to the node which is owned by this PlinkoSocket
-    public int getMyId() {
-        return ((PlinkoRaftEndpoint)myNode.getLocalEndpoint()).getId();
+//    public int getMyId() {
+//        return ((PlinkoRaftEndpoint)myNode.getLocalEndpoint()).getId();
+//    }
+
+    public PlinkoRaftEndpoint getEndpoint(EndpointDataRec data) {
+        for(RaftEndpoint e : endpoints) {
+            if(((PlinkoRaftEndpoint)e).getPort() == data.port() && ((PlinkoRaftEndpoint)e).getAddress().equals(data.address())) {
+                return (PlinkoRaftEndpoint) e;
+            }
+        }
+        return null;
     }
 
     //returns an array of ids corresponding to all endpoints
@@ -140,22 +160,49 @@ public class PlinkoSocket implements PlinkoSocketTemplate, Serializable {
 
     @Override
     public List<NewPlinkoObjectRec> getNewObjectsForNextState() {
-        return List.of();
+        return waitUntilLeaderElected().<List<NewPlinkoObjectRec>>replicate(
+                PlinkoRegister.newGetOperation(PlinkoRegister.UpdateTarget.placedObjects)
+        ).join().getResult();
     }
 
-    @Override
-    public void sendNewObjectsForNextState(List<NewPlinkoObjectRec> objects) {
+//    @Override
+//    public int advanceState(long currState, long newState) {
+//        return waitUntilLeaderElected().<Integer>replicate(
+//                PlinkoRegister.newCasOperation(
+//                        PlinkoRegister.UpdateTarget.currState,
+//                        currState,
+//                        PlinkoRegister.UpdateTarget.currState,
+//                        newState)
+//        ).join().getResult();
+//    }
 
+    @Override
+    public long advanceState(long currState, long newState) {
+        return waitUntilLeaderElected().<Long>replicate(
+                PlinkoRegister.newSetOperation(
+                        PlinkoRegister.UpdateTarget.currState,
+                        newState)
+        ).join().getResult();
     }
 
+    //Returns true if *an* object was placed in the given location
     @Override
-    public void sendNewObjectToServer(NewPlinkoObjectRec newObject) {
+    public boolean sendNewObjectToServer(NewPlinkoObjectRec newObject) {
+        int compare = waitUntilLeaderElected().<Integer>replicate(
+                PlinkoRegister.newCasOperation(
+                        PlinkoRegister.UpdateTarget.currState,
+                        newObject.stateNum(),
+                        PlinkoRegister.UpdateTarget.placedObjects,
+                        newObject)
+        ).join().getResult();
 
+        return compare == 0;
     }
 
-    @Override
-    public List<NewPlinkoObjectRec> getRequestedObjectsForNextState() {
-        return List.of();
+    public void clearObjects() {
+        waitUntilLeaderElected().<Long>replicate(
+                PlinkoRegister.newSetOperation(PlinkoRegister.UpdateTarget.placedObjects, null)
+        ).join();
     }
 
     @Override
@@ -164,33 +211,14 @@ public class PlinkoSocket implements PlinkoSocketTemplate, Serializable {
     }
 
     @Override
-    public ValidationRequest getValidationRequest() {
-        return null;
-    }
-
-    @Override
-    public void answerValidationRequest(boolean valid, int playerId) {
-
-    }
-
-    @Override
     public List<List<NewPlinkoObjectRec>> getNewObjectsForStates(MultiStateRequest request) {
         return List.of();
     }
 
-    @Override
-    public MultiStateRequest getMulitStateRequest() {
-        return null;
-    }
-
-    @Override
-    public void answerMultiStateRequest(List<List<NewPlinkoObjectRec>> newObjects, int playerId) {
-
-    }
 
     @Override
     public InitGameRec getInitState() {
-        return new InitGameRec(getLeaderNode().<Long>replicate(
+        return new InitGameRec(waitUntilLeaderElected().<Long>replicate(
                 PlinkoRegister.newGetOperation(PlinkoRegister.UpdateTarget.randSeed)
         ).join().getResult());
     }
@@ -198,8 +226,25 @@ public class PlinkoSocket implements PlinkoSocketTemplate, Serializable {
     //Only works if myNode is the leader, otherwise does nothing
     @Override
     public void setInitState(InitGameRec init) {
-        getLeaderNode().<Long>replicate(
+        waitUntilLeaderElected().<Long>replicate(
                 PlinkoRegister.newSetOperation(PlinkoRegister.UpdateTarget.randSeed, init.randSeed())
         ).join();
+    }
+
+    //returns true if this node is the leader
+    public boolean isMyNodeLeader(RaftEndpoint e) {
+        return waitUntilLeaderElected() == endpointToNode.get(e);
+    }
+
+    public long getState() {
+        return waitUntilLeaderElected().<Long>replicate(
+                PlinkoRegister.newGetOperation(PlinkoRegister.UpdateTarget.randSeed)
+        ).join().getResult();
+    }
+
+    public long setState(long state) {
+        return waitUntilLeaderElected().<Long>replicate(
+                PlinkoRegister.newSetOperation(PlinkoRegister.UpdateTarget.randSeed, state)
+        ).join().getResult();
     }
 }

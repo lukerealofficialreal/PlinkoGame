@@ -11,6 +11,7 @@ import io.microraft.persistence.*;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -19,7 +20,7 @@ public class PlinkoRegister implements StateMachine, Serializable {
 
     //The target of a replication
     public enum UpdateTarget {
-        currState, randSeed, placedObjects, checksum
+        currState, randSeed, placedObjects, checksum;
     }
 
     @Override
@@ -99,16 +100,16 @@ public class PlinkoRegister implements StateMachine, Serializable {
                                                      Object currentValue,
                                                      UpdateTarget setTarget,
                                                      Object newValue)) {
-            boolean success = switch (compareTarget) {
-                case UpdateTarget.currState -> this.currState == (long) currentValue;
-                case UpdateTarget.checksum -> this.checksum.equals((String) currentValue);
-                case UpdateTarget.randSeed -> this.randSeed == (long) currentValue;
+            //This cas operation runs compareTo on the given compareTarget and returns the result
+            int compare = switch (compareTarget) {
+                case UpdateTarget.currState -> Long.compare((long) currentValue, this.currState);
+                case UpdateTarget.checksum -> ((String)currentValue).compareTo(this.checksum);
+                case UpdateTarget.randSeed -> Long.compare((long) currentValue, this.randSeed);
 
-                //TODO: Maybe do this properly. There probably needs to be a newPlinkoObjectRec equals method.
-                //      It also might be more useful to send an entire list to compare instead of just an element
-                case UpdateTarget.placedObjects -> this.placedObjects.contains((NewPlinkoObjectRec) currentValue);
+                //TODO: Support compare on placedObjects if necessary
+                case UpdateTarget.placedObjects -> throw new UnsupportedOperationException("Cannot compare on placedObjects");
             };
-            if (success) {
+            if (compare == 0) {
                 switch (setTarget) {
                     case UpdateTarget.checksum -> this.checksum = (String) newValue;
                     case UpdateTarget.randSeed -> this.randSeed = (long) newValue;
@@ -118,13 +119,23 @@ public class PlinkoRegister implements StateMachine, Serializable {
                         if(newValue == null) {
                             this.placedObjects.clear();
                         } else {
-                            this.placedObjects.add((NewPlinkoObjectRec) newValue);
+                            //If placedObjects already has an item at the location of the given object, do not add the object.
+                            //For each item in placedObjects, check if the xPos and yPos are both the same the new object.
+                            //Convert truth values
+                            if(this.placedObjects.stream().map(o ->
+                                    (o.xPos()==((NewPlinkoObjectRec)newValue).xPos() &&
+                                            o.yPos()==((NewPlinkoObjectRec)newValue).yPos())).toList()
+                                    .equals(Collections.nCopies(this.placedObjects.size(), false))) {
+                                this.placedObjects.add((NewPlinkoObjectRec) newValue);
+                            } else {
+                                System.out.println("Location occupied; object ignored.");
+                            }
                         }
                     }
                     case UpdateTarget.currState -> this.currState = (long) newValue;
                 };
             }
-            return success;
+            return compare;
         } else if (operation instanceof GetOperation(UpdateTarget target)) {
             return switch (target) {
                 case UpdateTarget.checksum -> this.checksum;

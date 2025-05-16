@@ -203,16 +203,16 @@ public class PlinkoBoard implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private static final String BOARD_PATTERNS_PATH = System.getProperty("user.dir") + "/" + "BoardPatterns.json";
-    private static BoardPatternGenerator boardPatternGenerator;
-
-    static {
-        try {
-            boardPatternGenerator = new BoardPatternGenerator(BOARD_PATTERNS_PATH);
-        } catch (IOException e) {
-            System.err.printf("failed to read '%s.'\n",BOARD_PATTERNS_PATH);
-            System.exit(1);
-        }
-    }
+    private BoardPatternGenerator boardPatternGenerator;
+//
+//    static {
+//        try {
+//            boardPatternGenerator = new BoardPatternGenerator(BOARD_PATTERNS_PATH);
+//        } catch (IOException e) {
+//            System.err.printf("failed to read '%s.'\n",BOARD_PATTERNS_PATH);
+//            System.exit(1);
+//        }
+//    }
 
     private static final int Y_DIM = 22; //The maximum Y height of the board
 
@@ -270,6 +270,12 @@ public class PlinkoBoard implements Serializable {
 
     //Copy constructor
     public PlinkoBoard(PlinkoBoard other) {
+        try {
+            boardPatternGenerator = new BoardPatternGenerator(BOARD_PATTERNS_PATH);
+        } catch (IOException e) {
+            System.err.printf("failed to read '%s.'\n", BOARD_PATTERNS_PATH);
+            System.exit(1);
+        }
         this.safeZone = other.safeZone;
         this.xLen = other.xLen;
         this.yLen = other.yLen;
@@ -394,6 +400,13 @@ public class PlinkoBoard implements Serializable {
 
     //Creates an empty board of the given size
     public PlinkoBoard(int numPlayers, long seed) {
+        try {
+            boardPatternGenerator = new BoardPatternGenerator(BOARD_PATTERNS_PATH);
+        } catch (IOException e) {
+            System.err.printf("failed to read '%s.'\n", BOARD_PATTERNS_PATH);
+            System.exit(1);
+        }
+
         //Get xLen from the number of players
         this.xLen = boardWidthFromPlayers(numPlayers);
         this.yLen = Y_DIM;
