@@ -7,6 +7,9 @@ import io.microraft.RaftNodeStatus;
 import io.microraft.report.RaftTerm;
 import io.microraft.statemachine.StateMachine;
 import main.java.plinko.model.records.*;
+// - Note raftstore is very barebones and will likely not be useful for our project, but I will implement what I can.
+// - Duncan Zaug
+import io.microraft.persistence.*;
 
 import java.util.*;
 

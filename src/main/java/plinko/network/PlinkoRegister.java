@@ -5,6 +5,9 @@ package main.java.plinko.network;
 import io.microraft.statemachine.StateMachine;
 import main.java.plinko.model.PlinkoObject;
 import main.java.plinko.model.records.NewPlinkoObjectRec;
+// - Note raftstore is very barebones and will likely not be useful for our project, but I will implement what I can.
+// - Duncan Zaug
+import io.microraft.persistence.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
