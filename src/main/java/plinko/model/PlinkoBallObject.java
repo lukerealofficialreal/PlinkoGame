@@ -3,9 +3,10 @@ package main.java.plinko.model;
 import main.java.plinko.game.RandomNumberGenerator;
 import main.java.plinko.resources.DisplayedGraphics;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class PlinkoBallObject extends PlinkoObject {
+public class PlinkoBallObject extends PlinkoObject  implements Serializable {
 
     //The ball knows its x, y position so that it can relay that position to the board
     int xPos;

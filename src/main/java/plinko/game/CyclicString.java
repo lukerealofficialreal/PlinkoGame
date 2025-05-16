@@ -1,9 +1,11 @@
 package main.java.plinko.game;
 
+import java.io.Serializable;
+
 //structure which stores a string of characters such that the character at the last index in the string is the
 //character directly before the character at the first index of the string.
 //Repeating strings of arbitrary length can be obtained using the built-in methods.
-public class CyclicString {
+public class CyclicString implements Serializable {
     private final char[] charArr;
     private int currChar = 0;
 

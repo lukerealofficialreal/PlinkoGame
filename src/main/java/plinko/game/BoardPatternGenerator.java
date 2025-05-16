@@ -21,6 +21,8 @@ package main.java.plinko.game;
 
 import java.io.IOException;
 import main.java.plinko.Exceptions.TagFormatException;
+
+import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
@@ -31,7 +33,7 @@ import main.java.plinko.model.BoardPattern;
 import main.java.plinko.model.PatternTag;
 import org.json.*;
 
-public class BoardPatternGenerator {
+public class BoardPatternGenerator implements Serializable {
 
     private final HashMap<PatternTag, List<BoardPattern>> patternMap; //stores all pattern templates which can be generated
 

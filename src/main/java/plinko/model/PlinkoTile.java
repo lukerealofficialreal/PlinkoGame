@@ -2,10 +2,12 @@ package main.java.plinko.model;
 
 import main.java.plinko.resources.DisplayedGraphics;
 
+import java.io.Serializable;
+
 //A single tile on the plinkoBoard
 //Can be neutral or not neutral
 //Can have a obj or be empty
-public class PlinkoTile {
+public class PlinkoTile implements Serializable {
     protected final boolean neutral;
     public PlinkoObject obj = null;
 
