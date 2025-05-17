@@ -238,13 +238,25 @@ public class PlinkoSocket implements PlinkoSocketTemplate, Serializable {
 
     public long getState() {
         return waitUntilLeaderElected().<Long>replicate(
-                PlinkoRegister.newGetOperation(PlinkoRegister.UpdateTarget.randSeed)
+                PlinkoRegister.newGetOperation(PlinkoRegister.UpdateTarget.currState)
         ).join().getResult();
     }
 
     public long setState(long state) {
         return waitUntilLeaderElected().<Long>replicate(
-                PlinkoRegister.newSetOperation(PlinkoRegister.UpdateTarget.randSeed, state)
+                PlinkoRegister.newSetOperation(PlinkoRegister.UpdateTarget.currState, state)
         ).join().getResult();
     }
+
+    public int incBoardUpdates() {
+        return waitUntilLeaderElected().<Integer>replicate(
+                PlinkoRegister.newSetOperation(PlinkoRegister.UpdateTarget.currBoardUpdates, 0)
+        ).join().getResult();
+    }
+    public int getBoardUpdates() {
+        return waitUntilLeaderElected().<Integer>replicate(
+                PlinkoRegister.newGetOperation(PlinkoRegister.UpdateTarget.currBoardUpdates)
+        ).join().getResult();
+    }
+
 }

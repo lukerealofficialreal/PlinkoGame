@@ -14,13 +14,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 public class PlinkoRegister implements StateMachine, Serializable {
 
     //The target of a replication
     public enum UpdateTarget {
-        currState, randSeed, placedObjects, checksum;
+        currState, randSeed, placedObjects, checksum, currBoardUpdates;
     }
 
     @Override
@@ -43,6 +44,7 @@ public class PlinkoRegister implements StateMachine, Serializable {
     protected long randSeed;
     protected List<NewPlinkoObjectRec> placedObjects = new ArrayList<>();
     protected String checksum;
+    protected AtomicInteger currBoardUpdates = new AtomicInteger(0);
 
 
     public static PlinkoRegisterOperation newSetOperation(UpdateTarget target, Object newState) {
@@ -90,6 +92,9 @@ public class PlinkoRegister implements StateMachine, Serializable {
                     }
                     return prev;
                 }
+                case UpdateTarget.currBoardUpdates -> {
+                    return currBoardUpdates.getAndIncrement();
+                }
                 case UpdateTarget.currState -> {
                     prev = this.currState;
                     this.currState = (long) value;
@@ -105,6 +110,8 @@ public class PlinkoRegister implements StateMachine, Serializable {
                 case UpdateTarget.currState -> Long.compare((long) currentValue, this.currState);
                 case UpdateTarget.checksum -> ((String)currentValue).compareTo(this.checksum);
                 case UpdateTarget.randSeed -> Long.compare((long) currentValue, this.randSeed);
+                case UpdateTarget.currBoardUpdates -> Integer.compare((int) currentValue, this.currBoardUpdates.get());
+
 
                 //TODO: Support compare on placedObjects if necessary
                 case UpdateTarget.placedObjects -> throw new UnsupportedOperationException("Cannot compare on placedObjects");
@@ -132,6 +139,7 @@ public class PlinkoRegister implements StateMachine, Serializable {
                             }
                         }
                     }
+                    case UpdateTarget.currBoardUpdates -> this.currBoardUpdates.getAndIncrement();
                     case UpdateTarget.currState -> this.currState = (long) newValue;
                 };
             }
@@ -141,6 +149,7 @@ public class PlinkoRegister implements StateMachine, Serializable {
                 case UpdateTarget.checksum -> this.checksum;
                 case UpdateTarget.randSeed -> this.randSeed;
                 case UpdateTarget.placedObjects -> this.placedObjects;
+                case UpdateTarget.currBoardUpdates -> this.currBoardUpdates.get();
                 case UpdateTarget.currState -> this.currState;
             };
         }

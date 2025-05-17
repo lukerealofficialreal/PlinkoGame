@@ -19,7 +19,7 @@ public abstract class PlinkoObject extends RespectsNeutral implements Serializab
     }
 
     //virtual copy constructor
-    abstract PlinkoObject copyOf();
+    public abstract PlinkoObject copyOf();
 
 // Objects have locations, but no need to store them
 //    public int getxPos() {

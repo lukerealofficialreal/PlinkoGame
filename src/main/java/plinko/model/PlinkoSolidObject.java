@@ -108,9 +108,7 @@ public class PlinkoSolidObject extends PlinkoObject implements Serializable {
             return !neutral;
     }
 
-    public long getLifeTime() {
-        return lifeTime;
-    }
+    public long getLifeTime() {return lifeTime;}
     public void setLifeTime(int lifeTime) {
         this.lifeTime = lifeTime;
     }

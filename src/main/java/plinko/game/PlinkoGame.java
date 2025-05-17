@@ -21,7 +21,6 @@ public class PlinkoGame extends Thread {
 
     public List<int[]> clickLocs = new ArrayList<>();
 
-
     public static final long FRAME_DURATION = 1000;
     public static final int CLICK_BUFFER_SIZE = 1; //The maximum amount of objects which the user can buffer
 
@@ -37,6 +36,7 @@ public class PlinkoGame extends Thread {
                         "192.168.125.1", 27023
     )
         ));
+
 
     public static PlinkoSocket plinkoSocket = new PlinkoSocket(endpointData);
 
@@ -92,7 +92,7 @@ public class PlinkoGame extends Thread {
 
         //Build the board
         PlinkoBoard plinkoBoard = new PlinkoBoard(numPlayers, randSeed);
-
+        backupBoard(plinkoBoard);
 
         //Decide turn order based on obtained random seed
         //First index is ball runner first, second is second, and so on
@@ -111,8 +111,18 @@ public class PlinkoGame extends Thread {
             boolean isDropper = (myId == playerOrder[currPlayer]);
 
             //Start round loop
+            int backupCounter  = 0;
             gameLoop:
             while (plinkoBoard.ballsInPlay()) {
+//                boolean DEBUG = true;
+//                if(DEBUG) {
+//                    if(backupCounter == 10) {
+//                        backupBoard(plinkoBoard);
+//                    }
+//                    if(backupCounter == 20) {
+//                        plinkoBoard = restoreBackup();
+//                    }
+//                }
                 //Display initial board state
                 System.out.printf("New state: %d\n", plinkoBoard.getStateNum());
                 displayBoard(
@@ -126,39 +136,27 @@ public class PlinkoGame extends Thread {
                 boolean notNextState = true;
                 //while(notNextState) {
                     //If I am the leader, advance the board to the next state
-                if (plinkoSocket.isMyNodeLeader(myEndpoint)) {
-                    synchronized (this){//clear replicated objects
-                        plinkoSocket.clearObjects();
 
+                    if (plinkoSocket.isMyNodeLeader(myEndpoint)) {
                         //Advance replicated state
                         //long lastState = plinkoSocket.advanceState(plinkoBoard.getStateNum() -1, plinkoBoard.getStateNum());
-                        long lastState = plinkoSocket.setState(plinkoBoard.getStateNum());
+                        long lastState = plinkoSocket.setState(plinkoBoard.getStateNum()+1);
 
                         if (lastState != plinkoBoard.getStateNum()) {
                             System.out.println("state off by " + lastState);
                         }
-                        plinkoBoard.nextStateNum();
-                        this.notifyAll();
 
                     }
-                } else {
-                    try {
-                        synchronized (this) {
-                            this.wait();
-                            System.out.println("The wait is over!");
+                    long boardState = plinkoBoard.getStateNum();;
+                    while (true) {
+                        long replicatedState = plinkoSocket.getState();
+                        if(replicatedState > boardState) {
+                            plinkoBoard.setStateNum(replicatedState);
+                            break;
                         }
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
                     }
 
-                    long myState = plinkoSocket.getState();
-                    long boardState = plinkoBoard.getStateNum();
-                    if (myState > boardState) {
-                        plinkoBoard.nextStateNum();
-                    } else {
-                        throw new RuntimeException();
-                    }
-                }
+
 
                 //Update the existing objects on the board
                 plinkoBoard.updateBoard();
@@ -168,8 +166,14 @@ public class PlinkoGame extends Thread {
                 if(myNewObject.obj() != null) {
                     //Send new object to the server
                     boolean success = plinkoSocket.sendNewObjectToServer(myNewObject);
+
                     System.out.println(success);
                 }
+                plinkoSocket.incBoardUpdates();
+
+                //While not every player has updated the new board, busy wait
+                long timer = System.currentTimeMillis();
+                while(plinkoSocket.getBoardUpdates()%numPlayers != 0 && System.currentTimeMillis() < timer + 2000);
 
                 //The list of new objects which were created by players for this update
                 //should be added to the board this update
@@ -178,9 +182,20 @@ public class PlinkoGame extends Thread {
 
                 //add new objects to the board
                 for (NewPlinkoObjectRec rec : newObjectRecs) {
-                    plinkoBoard.addObject(rec.obj(), rec.xPos(), rec.yPos());
+                    plinkoBoard.addObject(rec.obj().copyOf(), rec.xPos(), rec.yPos());
                 }
 
+                plinkoSocket.incBoardUpdates();
+
+                //While not every player has gotten the new board, busy wait
+                timer = System.currentTimeMillis();
+                while(plinkoSocket.getBoardUpdates()%numPlayers != 0 && System.currentTimeMillis() < timer + 2000);
+
+                //clear replicated objects only after every player has read the
+                if (plinkoSocket.isMyNodeLeader(myEndpoint)) {
+                    plinkoSocket.clearObjects();
+                }
+                backupCounter++;
             }
             System.out.printf("final state: %d\n", plinkoBoard.getStateNum());
             displayBoard(
@@ -324,7 +339,7 @@ public class PlinkoGame extends Thread {
         for (int i = 0; i < charArray2D.length; i++) {
             for (int j = 0; j < charArray2D[i].length; j++) {
                 labels[i][j] = new JLabel(String.valueOf(charArray2D[i][j]));
-                labels[i][j].setFont(new Font(Font.MONOSPACED, Font.PLAIN, 30));
+                labels[i][j].setFont(new Font(Font.MONOSPACED, Font.PLAIN, 20));
                 panel1.add(labels[i][j]);
 
                 int yPos = charArray2D.length-1-i;
@@ -385,6 +400,15 @@ public class PlinkoGame extends Thread {
             e.printStackTrace();
             return plinkoBoard;
         }
+    }
+
+    public static final String FNAME = "Board";
+    public static void backupBoard(PlinkoBoard board) {
+        serializeBoard(board, FNAME);
+    }
+
+    public static PlinkoBoard restoreBackup() {
+        return deserializeBoard(FNAME);
     }
 }
 
